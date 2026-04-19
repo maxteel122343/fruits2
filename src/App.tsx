@@ -5083,7 +5083,6 @@ export default function App() {
                       />
                     </button>
                   </div>
-                  </div>
                 ))}
 
                 {adminTab === 'SKILL' && SKILLS.map((skill) => (
