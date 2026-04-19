@@ -1579,6 +1579,22 @@ export default function App() {
   const [maxHp, setMaxHp] = useState(100);
   const [uiTrigger, setUiTrigger] = useState(0);
   
+  // Defeat and AdMob states
+  const [showDefeat, setShowDefeat] = useState(false);
+  const [showAdVideo, setShowAdVideo] = useState(false);
+  const [adTimer, setAdTimer] = useState(30);
+
+  useEffect(() => {
+    let interval: any;
+    if (showAdVideo) {
+      setAdTimer(30);
+      interval = setInterval(() => {
+        setAdTimer(t => Math.max(0, t - 1));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [showAdVideo]);
+  
   const [level, setLevel] = useState(1);
   const [xp, setXp] = useState(0);
   const [maxXP, setMaxXP] = useState(100);
@@ -2869,6 +2885,14 @@ export default function App() {
         // Local player is 'player', AI bots start with 'ai'
         const isRemote = p.id !== 'player' && !p.id.startsWith('ai');
         if (isRemote) return;
+
+        // Custom Defeat Hook for local player
+        if (p.id === 'player' && p.hp <= 0 && !(gameRef.current as any).isDefeated) {
+          (gameRef.current as any).isDefeated = true;
+          p.respawnTimer = 999999; // Suspend standard automatic respawn
+          setShowDefeat(true);
+          return;
+        }
 
         if (p.respawnTimer > 0) {
           p.respawnTimer -= deltaTime / 1000;
@@ -5623,6 +5647,99 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* DEFEAT SCREEN */}
+      {showDefeat && !showAdVideo && (
+        <div className="absolute inset-0 z-[110] bg-vibrant-dark/90 flex flex-col items-center justify-center p-4 backdrop-blur-md pointer-events-auto">
+          <h1 className="text-4xl sm:text-6xl font-black text-vibrant-red uppercase tracking-tighter mb-8 drop-shadow-[0_0_15px_#ef4444] animate-pulse rounded-3xl border-4 border-vibrant-red p-8 shadow-[0_0_30px_#ef4444] bg-vibrant-dark/80">
+            Você foi Eliminado
+          </h1>
+
+          {/* AdMob Banner Placeholder */}
+          <div className="bg-white/5 border-2 border-dashed border-white/20 rounded-2xl flex flex-col items-center justify-center p-4 mb-10 w-[320px] h-[100px] relative">
+             <span className="text-white/40 font-black tracking-widest text-sm uppercase">AdMob Banner</span>
+             <span className="absolute bottom-2 right-2 text-[8px] text-white/20 uppercase">Advertisement</span>
+          </div>
+
+          <div className="flex flex-col gap-4 w-full max-w-sm">
+             <button 
+                onClick={(e) => {
+                   e.stopPropagation();
+                   setShowDefeat(false);
+                   setShowAdVideo(true);
+                }}
+                className="bg-vibrant-yellow text-vibrant-dark py-5 px-8 rounded-2xl font-black text-2xl hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_#fde047] w-full mt-4"
+             >
+                Assistir Ad (Reviver)
+             </button>
+             <button 
+                onClick={(e) => {
+                   e.stopPropagation();
+                   setShowDefeat(false);
+                   (gameRef.current as any).isDefeated = false;
+                   setGameState('START');
+                }}
+                className="bg-white/10 text-white py-4 px-8 rounded-2xl font-bold text-lg hover:bg-white/20 hover:scale-105 active:scale-95 transition-all w-full"
+             >
+                Retornar ao Menu
+             </button>
+          </div>
+        </div>
+      )}
+
+      {/* AD VIDEO REWARD SCREEN */}
+      {showAdVideo && (
+        <div className="absolute inset-0 z-[120] bg-black flex flex-col items-center justify-center pointer-events-auto">
+          <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ backgroundImage: "radial-gradient(circle, #2563eb, #000)" }}>
+             <h2 className="text-6xl text-white font-black uppercase tracking-widest mb-4 opacity-30 blur-[1px]">Vídeo AdMob</h2>
+             <p className="text-white font-bold opacity-60 bg-black/40 px-6 py-2 rounded-full border border-white/10">Este anúncio permite que você continue jogando sem perder a barra de XP e sua lâmina atual.</p>
+          </div>
+
+          <div className="absolute top-6 right-6 flex items-center gap-4 z-10 w-full justify-end px-6">
+             {adTimer <= 25 ? (
+               <button 
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   const player = gameRef.current.battlePlayers.find(p => p.id === 'player');
+                   if (player) {
+                      player.hp = player.maxHp;
+                      player.respawnTimer = 0;
+                      (gameRef.current as any).isDefeated = false;
+                      const isFreeArena = gameState === 'FREE_ARENA';
+                      const arenaW = isFreeArena ? FREE_ARENA_WIDTH : ARENA_WIDTH;
+                      player.x = arenaW / 2 + (Math.random() * 400 - 200);
+                      player.y = -200; // Drop from the sky!
+                      player.vx = 0;
+                      player.vy = 0;
+                      
+                      // Notify network
+                      if (channelRef.current) {
+                         channelRef.current.send({
+                           type: 'broadcast',
+                           event: 'update',
+                           payload: { id: 'player', data: { hp: player.maxHp, x: player.x, y: player.y } }
+                         });
+                      }
+                   }
+                   setShowAdVideo(false);
+                 }}
+                 className="bg-vibrant-dark/20 text-white hover:bg-white hover:text-black py-2 px-6 rounded-full font-black text-lg transition-all border-2 border-white backdrop-blur-md shadow-[0_0_20px_#fff] flex items-center justify-center gap-2"
+               >
+                 Pular Ad »
+               </button>
+             ) : (
+               <div className="bg-black/80 text-white/50 font-black tracking-widest py-3 px-6 rounded-full border border-white/20">
+                 Aguarde {adTimer - 25}s
+               </div>
+             )}
+          </div>
+          
+          <div className="absolute bottom-10 left-10 text-white/30 font-black text-2xl">
+            {adTimer} Segundos Restantes
+          </div>
+        </div>
+      )}
+
 
       {/* Battle HUD */}
     </div>
