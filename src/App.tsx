@@ -1608,6 +1608,9 @@ export default function App() {
     weaponPreview: true,
     nameInput: true,
     gameModes: true,
+    startFlipping: true,
+    battleArena: true,
+    freeArena: true,
     leaderboard: true,
     minimap: true,
     ads: true,
@@ -5000,7 +5003,10 @@ export default function App() {
                   { id: 'weaponForge', label: 'The Forge (Armas)', icon: '⚔️' },
                   { id: 'weaponPreview', label: 'Preview da Arma', icon: '🔍' },
                   { id: 'nameInput', label: 'Campo de Nome', icon: '✍️' },
-                  { id: 'gameModes', label: 'Modos de Jogo', icon: '🎮' },
+                  { id: 'gameModes', label: 'Modos de Jogo (Bloco)', icon: '🎮' },
+                  { id: 'startFlipping', label: 'Botão Start', icon: '▶️' },
+                  { id: 'battleArena', label: 'Botão Battle', icon: '💥' },
+                  { id: 'freeArena', label: 'Botão Free', icon: '⚡' },
                   { id: 'leaderboard', label: 'Leaderboard (Arena)', icon: '🏆' },
                   { id: 'minimap', label: 'Minimap (Arena)', icon: '🗺️' },
                   { id: 'ads', label: 'Propagandas (Laterais)', icon: '📺' },
@@ -5264,6 +5270,7 @@ export default function App() {
                 {/* Main Buttons */}
                 {menuVisibility.gameModes && (
                   <div className="flex flex-col gap-2 sm:gap-3 w-full">
+                    {menuVisibility.startFlipping && (
                     <button 
                       onClick={(e) => { e.stopPropagation(); sounds.playUIClick(); startGame(); }}
                       className="vibrant-button-primary w-full group relative py-3 sm:py-4 overflow-hidden"
@@ -5273,27 +5280,32 @@ export default function App() {
                         START FLIPPING
                       </div>
                     </button>
+                    )}
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="flex gap-3">
+                      {menuVisibility.battleArena && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); sounds.playUIClick(); startBattle(); }}
-                        className="vibrant-button-primary !bg-vibrant-red !shadow-[#EE6055] py-3"
+                        className="vibrant-button-primary flex-1 !bg-vibrant-red !shadow-[#EE6055] py-3"
                       >
                         <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-black">
                           <Sword className="w-4 h-4" />
                           BATTLE ARENA
                         </div>
                       </button>
+                      )}
 
+                      {menuVisibility.freeArena && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); sounds.playUIClick(); startFreeArena(); }}
-                        className="vibrant-button-primary !bg-vibrant-blue !shadow-[0_6px_0_#2563eb] py-3"
+                        className="vibrant-button-primary flex-1 !bg-vibrant-blue !shadow-[0_6px_0_#2563eb] py-3"
                       >
                         <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-black">
                           <Zap className="w-4 h-4" />
                           FREE ARENA
                         </div>
                       </button>
+                      )}
                     </div>
                   </div>
                 )}
