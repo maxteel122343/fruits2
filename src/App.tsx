@@ -1548,6 +1548,7 @@ interface GameObject {
   range?: number;
   startY?: number;
   startX?: number;
+  terrain?: number[];
   speed?: number;
   direction?: 'vertical' | 'horizontal';
   scale?: number;
@@ -1908,6 +1909,24 @@ export default function App() {
     }
   };
 
+  const deformIsland = (obj: GameObject, x: number, radius: number, depth: number) => {
+    if (!obj.terrain || !obj.width) return;
+    const startX = obj.x - obj.width / 2;
+    const localX = x - startX;
+    
+    const startIndex = Math.max(0, Math.floor((localX - radius) / TERRAIN_RES));
+    const endIndex = Math.min(obj.terrain.length - 1, Math.floor((localX + radius) / TERRAIN_RES));
+    
+    for (let i = startIndex; i <= endIndex; i++) {
+        const px = i * TERRAIN_RES;
+        const dist = Math.abs(px - localX);
+        if (dist < radius) {
+            const force = Math.cos((dist / radius) * (Math.PI / 2));
+            obj.terrain[i] += force * depth;
+        }
+    }
+  };
+
   const deformWall = (y: number, radius: number, depth: number, side: 'left' | 'right') => {
     const wall = side === 'left' ? gameRef.current.leftWall : gameRef.current.rightWall;
     if (!wall || wall.length === 0) return;
@@ -2038,6 +2057,14 @@ export default function App() {
       color: '#475569',
       width: arenaW_ref * 0.3,
       height: 25
+    });
+
+    // Initialize procedural terrain for each island
+    objects.forEach(p => {
+      if (p.type === 'PLATFORM') {
+        const segments = Math.floor((p.width || 200) / TERRAIN_RES) + 1;
+        p.terrain = Array.from({length: segments}, () => Math.random() * 15 - 5);
+      }
     });
 
     let currentX = 400;
@@ -2206,26 +2233,32 @@ export default function App() {
     // Exactly 2 suspended platforms for battle
     const platforms: GameObject[] = [
       {
-        id: 2001,
-        x: ARENA_WIDTH / 2,
-        y: ARENA_HEIGHT - 400,
+        id: Date.now(),
         type: 'PLATFORM',
+        x: 200,
+        y: ARENA_HEIGHT * 0.4,
         sliced: false,
         color: '#475569',
-        width: ARENA_WIDTH * 0.3,
-        height: 25
+        width: 200,
+        height: 60
       },
       {
-        id: 2002,
-        x: ARENA_WIDTH / 2,
-        y: ARENA_HEIGHT - 800,
+        id: Date.now() + 1,
         type: 'PLATFORM',
+        x: ARENA_WIDTH - 200,
+        y: ARENA_HEIGHT * 0.6,
         sliced: false,
         color: '#475569',
-        width: ARENA_WIDTH * 0.3,
-        height: 25
+        width: 200,
+        height: 60
       }
     ];
+
+    platforms.forEach(p => {
+      const segments = Math.floor((p.width || 200) / TERRAIN_RES) + 1;
+      p.terrain = Array.from({length: segments}, () => Math.random() * 15 - 5);
+    });
+
     gameRef.current.objects = platforms;
 
     gameRef.current.battlePlayers = players;
@@ -2296,34 +2329,32 @@ export default function App() {
     // Exactly 2 suspended platforms for Free Arena
     const platforms: GameObject[] = [
       {
-        id: 3001,
-        x: 1000,
-        y: FREE_ARENA_HEIGHT - 400,
+        id: Date.now(),
         type: 'PLATFORM',
+        x: 400 * 0.3, // proportional 
+        y: FREE_ARENA_HEIGHT * 0.4,
         sliced: false,
         color: '#475569',
-        width: FREE_ARENA_WIDTH * 0.05, // 30% of full 50k width is too much, using 30% of standard arena or proportional
-        height: 35
+        width: 800 * 0.3,
+        height: 60,
       },
       {
-        id: 3002,
-        x: 2000,
-        y: FREE_ARENA_HEIGHT - 800,
+        id: Date.now() + 1,
         type: 'PLATFORM',
+        x: FREE_ARENA_WIDTH - 400 * 0.3,
+        y: FREE_ARENA_HEIGHT * 0.6,
         sliced: false,
         color: '#475569',
-        width: FREE_ARENA_WIDTH * 0.05,
-        height: 35
+        width: 800 * 0.3,
+        height: 60,
       }
     ];
-
-    // Correction: User asked for 30% width. I will stick to it but maybe for standard arena it makes sense.
-    // However, if they want 30% of 50,000, it's 15,000.
-    // I'll use 800 * 0.3 = 240 as a fixed "reasonable" width if the arena width is multi-viewport.
-    // BUT the request says "largura da arena". 
-    // Let's use proportional to 800 in all modes for consistency of "platform" feel.
-    platforms[0].width = 800 * 0.3;
-    platforms[1].width = 800 * 0.3;
+    
+    // Initialize procedural terrain for each island
+    platforms.forEach(p => {
+      const segments = Math.floor((p.width || 200) / TERRAIN_RES) + 1;
+      p.terrain = Array.from({length: segments}, () => Math.random() * 15 - 5);
+    });
 
     gameRef.current.objects = platforms;
 
@@ -2873,26 +2904,49 @@ export default function App() {
           p.y += p.vy;
           p.angle += p.va;
 
-          // Platform Collision
+          // Platform Collision (Islands)
           objects.forEach(obj => {
-            if ((obj.type === 'PLATFORM' || obj.type === 'LIFT') && obj.width && obj.height) {
+            if ((obj.type === 'PLATFORM' || obj.type === 'LIFT') && obj.width && obj.height && obj.terrain) {
               const knifeTipX = p.x;
               const knifeTipY = p.y;
-              if (knifeTipX > obj.x - obj.width/2 && knifeTipX < obj.x + obj.width/2 &&
-                  knifeTipY > obj.y - obj.height/2 && knifeTipY < obj.y + obj.height/2) {
-                
-                const normalizedAngle = ((p.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-                const isTipDown = Math.abs(normalizedAngle - Math.PI / 2) < 0.5 || activeSkills['perfect_stick'];
+              
+              if (knifeTipX > obj.x - obj.width/2 && knifeTipX < obj.x + obj.width/2) {
+                // Find local surface Y
+                const localX = knifeTipX - (obj.x - obj.width/2);
+                const index = Math.floor(localX / TERRAIN_RES);
+                // The base surface is at (obj.y - obj.height/2), deformed by obj.terrain
+                const surfaceY = (Math.max(obj.y - obj.height/2, obj.y - obj.height/2) + ((obj.terrain[index] || 0) + (obj.terrain[index+1] || 0))/2);
 
-                if (isTipDown && Math.random() < (p.weapon.stickProbability || 0.5)) {
-                  p.y = obj.y;
-                  p.vx = 0; p.vy = 0; p.va = 0;
-                  p.isGrounded = true;
-                  sounds.playStick();
-                } else {
-                  p.vy *= -p.weapon.bounciness;
-                  p.y = obj.y - obj.height/2 - 5;
-                  sounds.playBounce();
+                if (knifeTipY > surfaceY && knifeTipY < obj.y + obj.height/2 + 20) {
+                  
+                  const normalizedAngle = ((p.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+                  const isTipDown = Math.abs(normalizedAngle - Math.PI / 2) < 0.5 || activeSkills['perfect_stick'];
+
+                  if (isTipDown && Math.random() < (p.weapon.stickProbability || 0.5)) {
+                    const impactVy = p.vy;
+                    p.y = surfaceY + 5;
+                    p.vx = 0; p.vy = 0; p.va = 0;
+                    p.isGrounded = true;
+                    sounds.playStick();
+                    
+                    const weaponScale = p.scale * (p.weapon.edgeLength || 1);
+                    const impactSpeedY = Math.abs(impactVy);
+                    if (impactSpeedY > 3) {
+                       deformIsland(obj, p.x, 50 * weaponScale, Math.min(60, impactSpeedY * 2.0 * weaponScale));
+                    }
+                  } else {
+                    const impactVy = p.vy;
+                    p.vy *= -p.weapon.bounciness;
+                    p.y = surfaceY - 5;
+                    p.vx *= 0.8;
+                    sounds.playBounce();
+                    
+                    const bounceSpeed = Math.abs(impactVy);
+                    const weaponScale = p.scale * (p.weapon.edgeLength || 1);
+                    if (bounceSpeed > 4) {
+                       deformIsland(obj, p.x, 60 * weaponScale, Math.min(40, bounceSpeed * 1.5 * weaponScale));
+                    }
+                  }
                 }
               }
             }
@@ -3430,22 +3484,34 @@ export default function App() {
           
           // Platform Collision
           objects.forEach(obj => {
-            if ((obj.type === 'PLATFORM' || obj.type === 'LIFT') && obj.width && obj.height) {
-              if (knife.x > obj.x - obj.width/2 && knife.x < obj.x + obj.width/2 &&
-                  knife.y > obj.y - obj.height/2 && knife.y < obj.y + obj.height/2) {
-                
-                const normalizedAngle = ((knife.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-                const isTipDown = Math.abs(normalizedAngle - Math.PI / 2) < 0.5 || activeSkills['perfect_stick'];
+            if ((obj.type === 'PLATFORM' || obj.type === 'LIFT') && obj.width && obj.height && obj.terrain) {
+              const knifeTipX = knife.x;
+              const knifeTipY = knife.y;
+              
+              if (knifeTipX > obj.x - obj.width/2 && knifeTipX < obj.x + obj.width/2) {
+                // Find local surface Y
+                const localX = knifeTipX - (obj.x - obj.width/2);
+                const index = Math.floor(localX / TERRAIN_RES);
+                const surfaceY = (Math.max(obj.y - obj.height/2, obj.y - obj.height/2) + ((obj.terrain[index] || 0) + (obj.terrain[index+1] || 0))/2);
 
-                if (isTipDown && Math.random() < (knife.weapon.stickProbability || 0.5)) {
-                  knife.y = obj.y;
-                  knife.vx = 0; knife.vy = 0; knife.va = 0;
-                  knife.isGrounded = true;
-                  sounds.playStick();
-                } else {
-                  knife.vy *= -knife.weapon.bounciness;
-                  knife.y = obj.y - obj.height/2 - 5;
-                  sounds.playBounce();
+                if (knifeTipY > surfaceY && knifeTipY < obj.y + obj.height/2 + 20) {
+                  
+                  const normalizedAngle = ((knife.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+                  const isTipDown = Math.abs(normalizedAngle - Math.PI / 2) < 0.5 || activeSkills['perfect_stick'];
+
+                  if (isTipDown && Math.random() < (knife.weapon.stickProbability || 0.5)) {
+                    knife.y = surfaceY + 5;
+                    knife.vx = 0; knife.vy = 0; knife.va = 0;
+                    knife.isGrounded = true;
+                    sounds.playStick();
+                    
+                    const weaponScale = (knife.weapon.edgeLength || 1);
+                    deformIsland(obj, knife.x, 50 * weaponScale, 30);
+                  } else {
+                    knife.vy *= -knife.weapon.bounciness;
+                    knife.y = surfaceY - 5;
+                    sounds.playBounce();
+                  }
                 }
               }
             }
@@ -3701,11 +3767,11 @@ export default function App() {
         ctx.beginPath();
         const startX_cam = Math.max(0, cameraX - 100);
         const endX_cam = Math.min(FREE_ARENA_WIDTH, cameraX + window.innerWidth + 100);
-        ctx.moveTo(startX_cam, FREE_ARENA_HEIGHT + 200);
+        ctx.moveTo(startX_cam, FREE_ARENA_HEIGHT + 3000);
         for (let x = startX_cam; x <= endX_cam; x += TERRAIN_RES) {
             ctx.lineTo(x, getTerrainY(x, FREE_ARENA_HEIGHT));
         }
-        ctx.lineTo(endX_cam, FREE_ARENA_HEIGHT + 200);
+        ctx.lineTo(endX_cam, FREE_ARENA_HEIGHT + 3000);
         ctx.fill();
         
         ctx.strokeStyle = '#2B2D42';
@@ -3727,11 +3793,11 @@ export default function App() {
         // Terrain Mesh (Battle Arena)
         ctx.fillStyle = '#1e293b';
         ctx.beginPath();
-        ctx.moveTo(0, ARENA_HEIGHT + 200);
+        ctx.moveTo(0, ARENA_HEIGHT + 3000);
         for (let x = 0; x <= ARENA_WIDTH; x += TERRAIN_RES) {
             ctx.lineTo(x, getTerrainY(x, ARENA_HEIGHT));
         }
-        ctx.lineTo(ARENA_WIDTH, ARENA_HEIGHT + 200);
+        ctx.lineTo(ARENA_WIDTH, ARENA_HEIGHT + 3000);
         ctx.fill();
 
         ctx.strokeStyle = '#000';
@@ -3783,7 +3849,8 @@ export default function App() {
         ctx.strokeStyle = 'rgba(255,255,255,0.1)';
         ctx.setLineDash([20, 20]);
         ctx.beginPath();
-        ctx.moveTo(0, ARENA_HEIGHT * 0.3); ctx.lineTo(ARENA_WIDTH, ARENA_HEIGHT * 0.3);
+        ctx.moveTo(0, ARENA_HEIGHT + 3000);
+        ctx.lineTo(ARENA_WIDTH, ARENA_HEIGHT + 3000);
         ctx.moveTo(0, ARENA_HEIGHT * 0.7); ctx.lineTo(ARENA_WIDTH, ARENA_HEIGHT * 0.7);
         ctx.stroke();
         ctx.setLineDash([]);
@@ -3822,23 +3889,49 @@ export default function App() {
         drawDimensionalFruit(ctx, f.x, f.y, f.label || '🍎', f.color, f.scale);
       });
 
-      // Draw Platforms
+      // Draw Islands/Platforms
       objects.forEach(obj => {
-        if ((obj.type === 'PLATFORM' || obj.type === 'LIFT') && obj.width && obj.height) {
+        if ((obj.type === 'PLATFORM' || obj.type === 'LIFT') && obj.width && obj.height && obj.terrain) {
           ctx.save();
-          ctx.translate(obj.x, obj.y);
-          ctx.fillStyle = obj.type === 'LIFT' ? '#fbbf24' : '#475569';
-          ctx.fillRect(-obj.width/2, -obj.height/2, obj.width, obj.height);
-          ctx.strokeStyle = '#2B2D42';
-          ctx.lineWidth = 3;
-          ctx.strokeRect(-obj.width/2, -obj.height/2, obj.width, obj.height);
+          ctx.translate(obj.x - obj.width/2, obj.y - obj.height/2);
           
-          // Decorative lines
-          ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-          ctx.lineWidth = 1;
-          for(let lx = -obj.width/2 + 20; lx < obj.width/2; lx += 40) {
-            ctx.beginPath(); ctx.moveTo(lx, -obj.height/2); ctx.lineTo(lx, obj.height/2); ctx.stroke();
+          ctx.fillStyle = obj.type === 'LIFT' ? '#fbbf24' : '#475569';
+          ctx.strokeStyle = '#2B2D42';
+          ctx.lineWidth = 4;
+          
+          ctx.beginPath();
+          ctx.moveTo(0, obj.height);
+          
+          // Draw the deformed top surface
+          for (let i = 0; i < obj.terrain.length; i++) {
+              ctx.lineTo(i * TERRAIN_RES, obj.terrain[i]);
           }
+          
+          // Drop down to the bottom
+          ctx.lineTo(obj.width, obj.height);
+          
+          // Draw a curved/bumpy bottom to make it look like an island
+          ctx.quadraticCurveTo(obj.width * 0.75, obj.height + 40, obj.width * 0.5, obj.height + 20);
+          ctx.quadraticCurveTo(obj.width * 0.25, obj.height + 40, 0, obj.height);
+          
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          
+          // Grass on top
+          ctx.fillStyle = obj.type === 'LIFT' ? '#f59e0b' : '#38bdf8';
+          ctx.beginPath();
+          ctx.moveTo(0, obj.terrain[0] || 0);
+          for (let i = 0; i < obj.terrain.length; i++) {
+              ctx.lineTo(i * TERRAIN_RES, obj.terrain[i]);
+          }
+          ctx.lineTo(obj.width, (obj.terrain[obj.terrain.length-1] || 0) + 10);
+          for (let i = obj.terrain.length - 1; i >= 0; i--) {
+              ctx.lineTo(i * TERRAIN_RES, obj.terrain[i] + 10);
+          }
+          ctx.closePath();
+          ctx.fill();
+
           ctx.restore();
         }
       });
@@ -4166,11 +4259,11 @@ export default function App() {
         ctx.beginPath();
         const startX_draw = Math.max(0, cameraX - 100);
         const endX_draw = Math.min(15000, cameraX + canvas.width + 100); // 15k ref
-        ctx.moveTo(startX_draw, GROUND_Y + 200);
+        ctx.moveTo(startX_draw, GROUND_Y + 3000);
         for (let x = startX_draw; x <= endX_draw; x += TERRAIN_RES) {
             ctx.lineTo(x, getTerrainY(x, GROUND_Y));
         }
-        ctx.lineTo(endX_draw, GROUND_Y + 200);
+        ctx.lineTo(endX_draw, GROUND_Y + 3000);
         ctx.fill();
 
         // Ground Edge
