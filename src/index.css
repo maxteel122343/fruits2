@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@theme {
+  --color-vibrant-yellow: #FFED4A;
+  --color-vibrant-yellow-light: #FFF281;
+  --color-vibrant-yellow-dark: #E6D543;
+  --color-vibrant-red: #FF5E5B;
+  --color-vibrant-red-dark: #EE6055;
+  --color-vibrant-blue: #3b82f6;
+  --color-vibrant-blue-dark: #2563eb;
+  --color-vibrant-green: #7AC74F;
+  --color-vibrant-green-dark: #5A943A;
+  --color-vibrant-dark: #2B2D42;
+  
+  --font-sans: "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-vibrant-yellow text-vibrant-dark font-sans;
+    background-color: var(--color-vibrant-yellow);
+    background-image: 
+      radial-gradient(circle at 100% 100%, var(--color-vibrant-yellow-light) 0%, transparent 40%),
+      radial-gradient(circle at 0% 0%, var(--color-vibrant-yellow-light) 0%, transparent 40%),
+      url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%232B2D42' fill-opacity='0.02' fill-rule='evenodd'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3C/g%3E%3C/svg%3E");
+  }
+}
+
+@layer components {
+  .vibrant-pill {
+    @apply bg-transparent border-[3px] border-vibrant-dark px-5 py-2 rounded-2xl flex items-center gap-3 font-bold text-lg text-vibrant-dark;
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.1);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  .vibrant-pill:hover {
+    @apply scale-105;
+  }
+
+  .vibrant-title-box {
+    @apply bg-white px-8 py-3 rounded-2xl border-4 border-vibrant-dark font-black text-4xl uppercase tracking-tighter text-vibrant-dark;
+    box-shadow: 6px 6px 0 rgba(0,0,0,0.1);
+  }
+
+  .vibrant-card {
+    @apply bg-white rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 md:p-10 lg:p-12 border-4 border-vibrant-dark relative;
+    box-shadow: 12px 12px 0 rgba(0,0,0,0.1);
+  }
+
+  .vibrant-button-primary {
+    @apply bg-vibrant-green hover:bg-vibrant-green-dark text-white font-black py-5 rounded-2xl transition-all active:translate-y-1 shadow-[0_6px_0_#5A943A] active:shadow-none border-2 border-vibrant-dark/10;
+  }
+
+  .vibrant-button-secondary {
+    @apply bg-vibrant-red hover:bg-vibrant-red-dark text-white font-black py-5 rounded-2xl transition-all active:translate-y-1 shadow-[0_6px_0_#EE6055] active:shadow-none border-2 border-vibrant-dark/10;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-vibrant-dark/5 rounded-full;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-vibrant-dark/20 rounded-full hover:bg-vibrant-dark/40 transition-colors;
+  }
+}
