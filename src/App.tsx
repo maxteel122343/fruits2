@@ -1598,6 +1598,16 @@ export default function App() {
   });
   const [showAdmin, setShowAdmin] = useState(false);
   const [adminTab, setAdminTab] = useState<'UI' | 'CAT' | 'WEAPON'>('UI');
+  const [itemNotif, setItemNotif] = useState<{icon: string, title: string, name: string, color: string} | null>(null);
+
+  useEffect(() => {
+    const handlePickup = (e: CustomEvent) => {
+      setItemNotif(e.detail);
+      setTimeout(() => setItemNotif(null), 3000);
+    };
+    window.addEventListener('itemPickup', handlePickup as any);
+    return () => window.removeEventListener('itemPickup', handlePickup as any);
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('menuVisibility');
@@ -3099,13 +3109,17 @@ export default function App() {
               const skill = SKILLS.find(s => s.id === obj.cardId);
               if (skill) {
                 gameRef.current.activeSkills[skill.id] = skill.duration;
+                if (p.id === 'player') window.dispatchEvent(new CustomEvent('itemPickup', {detail: {icon: skill.icon, title: 'SKILL ACQUIRED', name: skill.name, color: obj.color}}));
                 sounds.playLevelUp();
               }
             } else if (obj.cardType === 'WEAPON' && obj.cardId) {
               const weapon = WEAPON_PRESETS.find(w => w.id === obj.cardId);
               if (weapon) {
                 p.weapon = weapon;
-                if (p.id === 'player') setSelectedWeapon(weapon);
+                if (p.id === 'player') {
+                  setSelectedWeapon(weapon);
+                  window.dispatchEvent(new CustomEvent('itemPickup', {detail: {icon: weapon.icon, title: 'WEAPON EQUIPPED', name: weapon.name, color: obj.color}}));
+                }
                 sounds.playLevelUp();
               }
             }
@@ -3556,6 +3570,7 @@ export default function App() {
                 const skill = SKILLS.find(s => s.id === obj.cardId);
                 if (skill) {
                   gameRef.current.activeSkills[skill.id] = skill.duration;
+                  window.dispatchEvent(new CustomEvent('itemPickup', {detail: {icon: skill.icon, title: 'SKILL ACQUIRED', name: skill.name, color: obj.color}}));
                   sounds.playLevelUp();
                 }
               } else if (obj.cardType === 'WEAPON' && obj.cardId) {
@@ -3563,6 +3578,7 @@ export default function App() {
                 if (weapon) {
                   knife.weapon = weapon;
                   setSelectedWeapon(weapon);
+                  window.dispatchEvent(new CustomEvent('itemPickup', {detail: {icon: weapon.icon, title: 'WEAPON EQUIPPED', name: weapon.name, color: obj.color}}));
                   sounds.playLevelUp();
                 }
               }
@@ -3817,7 +3833,8 @@ export default function App() {
             const wep = WEAPON_PRESETS.find(w => w.id === obj.cardId);
             if (wep) label = wep.icon;
           }
-          drawCard(ctx, obj.x, obj.y, label, obj.color, obj.cardType || 'SKILL');
+          // Draw as a spherical orb instead of a flat card
+          drawDimensionalFruit(ctx, obj.x, obj.y, label, obj.color, 1.2);
         }
       });
 
@@ -4223,7 +4240,8 @@ export default function App() {
             }
           }
           else if (obj.type === 'CARD') {
-            drawCard(ctx, obj.x, obj.y, obj.label || '?', obj.color, obj.cardType || 'SKILL');
+            // Draw as a spherical orb instead of a flat card
+            drawDimensionalFruit(ctx, obj.x, obj.y, obj.label || '?', obj.color, 1.2);
           }
           else if (obj.type === 'SPIKE') { 
             const spikeY = getTerrainY(obj.x, GROUND_Y);
@@ -5203,7 +5221,34 @@ export default function App() {
               {formatTime(gameRef.current.battleTimer)}
             </div>
           </div>
-          
+          {/* Item Notification Toast */}
+          <AnimatePresence>
+            {itemNotif && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8, x: 20 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.8, x: 20 }}
+                className="absolute top-20 right-4 sm:right-8 bg-white/90 backdrop-blur-md rounded-2xl p-4 z-50 border-4 shadow-xl flex items-center gap-4"
+                style={{ borderColor: itemNotif.color }}
+              >
+                <div 
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-inner brightness-110" 
+                  style={{ backgroundColor: itemNotif.color, boxShadow: 'inset 0 4px 6px rgba(255,255,255,0.4), inset 0 -4px 6px rgba(0,0,0,0.1)' }}
+                >
+                  {itemNotif.icon}
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-bold text-xs opacity-60 uppercase tracking-wider" style={{ color: itemNotif.color }}>
+                    {itemNotif.title}
+                  </span>
+                  <span className="font-black text-vibrant-dark text-lg">
+                    {itemNotif.name}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {menuVisibility.leaderboard && (
             <div className="absolute top-0 right-4 sm:right-8 w-64 sm:w-80 bg-vibrant-dark/5 backdrop-blur-md rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 z-40 border-2 sm:border-4 border-vibrant-dark/20 flex flex-col gap-2 sm:gap-3 shadow-[4px_4px_0_rgba(0,0,0,0.1)] sm:shadow-[8px_8px_0_rgba(0,0,0,0.1)] max-h-[60vh] overflow-y-auto no-scrollbar pointer-events-auto">
               <h3 className="font-black uppercase tracking-tighter text-vibrant-dark text-base sm:text-lg border-b-2 border-vibrant-dark/20 pb-1 sm:pb-2 flex justify-between items-center">
