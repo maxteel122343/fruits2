@@ -247,6 +247,7 @@ interface WeaponConfig {
   hiltDurability: number; // HP
   maxEnergy?: number; // Stamina (0 to 100)
   knockbackForce?: number; // Impact factor (0 to 1)
+  terrainDamage?: number; // Ground dig capability multiplier
   bounciness: number; // restitution
   stunDuration: number; // seconds
   // Movement
@@ -2948,11 +2949,13 @@ export default function App() {
               const pSpeed = Math.sqrt(impactVx * impactVx + impactVy * impactVy);
               const isHeavyImpact = pSpeed > 10 || gameRef.current.isSlamming;
 
-              // Deform Terrain on stick (all players + bots, proportional to speed)
+              const weaponScale = p.scale * (p.weapon.edgeLength || 1);
+              const terrainDmg = p.weapon.terrainDamage || 1.0;
+              // Deform Terrain on stick (all players + bots, proportional to speed and weapon scale)
               const impactSpeedY = Math.abs(impactVy);
               if (impactSpeedY > 3) {
-                const deformDepth = Math.min(50, impactSpeedY * 1.5) + (gameRef.current.isSlamming && p.id === 'player' ? 30 : 0);
-                deformTerrain(p.x, 60, deformDepth);
+                const deformDepth = Math.min(70, impactSpeedY * 2.5 * weaponScale) * terrainDmg + (gameRef.current.isSlamming && p.id === 'player' ? 30 : 0);
+                deformTerrain(p.x, 50 * weaponScale * terrainDmg, deformDepth);
               }
 
               // Add Crater Impact Feedback
@@ -3034,15 +3037,31 @@ export default function App() {
                 }
               }
             } else {
+              const impactVy = p.vy;
+
               p.y = groundY;
               p.vy *= -p.weapon.bounciness;
               p.vx *= 0.8;
               p.va *= -p.weapon.bounciness;
               sounds.playBounce();
-              // Deform terrain on bounce (proportional to impact speed)
-              const bounceSpeed = Math.abs(p.vy);
+              
+              // Deform terrain on bounce (proportional to impact speed, weapon size and weapon angle)
+              const bounceSpeed = Math.abs(impactVy);
+              const weaponScale = p.scale * (p.weapon.edgeLength || 1);
+              const terrainDmg = p.weapon.terrainDamage || 1.0;
+              
+              const isHorizontalHit = angleToGround > 1.0 && angleToGround < 2.1;
+              const isTipUpHit = angleToGround > 2.5;
+
               if (bounceSpeed > 4) {
-                deformTerrain(p.x, 40 + bounceSpeed * 2, Math.min(30, bounceSpeed * 0.6));
+                 // Transversal/horizontal hits deform a wider, shallower area
+                 const baseRadius = isHorizontalHit ? 140 : (isTipUpHit ? 50 : 70);
+                 const baseDepth = isHorizontalHit ? 0.3 : (isTipUpHit ? 1.5 : 0.8);
+                 
+                 const radius = baseRadius * weaponScale * terrainDmg + bounceSpeed * 2;
+                 const depth = Math.min(50, bounceSpeed * baseDepth * weaponScale) * terrainDmg;
+                 
+                 deformTerrain(p.x, radius, depth);
               }
             }
           }
