@@ -130,7 +130,7 @@ const GROUND_Y = 500;
 const KNIFE_WIDTH = 80;
 const KNIFE_HEIGHT = 20;
 const TERRAIN_RES = 40; // Pixels per terrain point
-const BATTLE_DURATION = 300; // 5 minutes in seconds
+const BATTLE_DURATION = 180; // 3 minutes in seconds
 const ARENA_WIDTH = 800; // Virtual width for the arena
 const ARENA_HEIGHT = 2000; // Virtual height for vertical arena
 const FREE_ARENA_WIDTH = 50000; // 10x larger (was 5000)
@@ -4109,10 +4109,13 @@ export default function App() {
         // Name Tag
         ctx.save();
         ctx.rotate(-p.angle);
-        ctx.fillStyle = isFreeArena ? '#1e293b' : '#FFF';
-        ctx.font = 'bold 14px sans-serif';
+        ctx.font = '900 16px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`${p.name}`, 0, -70);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.strokeText(`${p.name}`, 0, -82);
+        ctx.fillStyle = isFreeArena ? '#1e293b' : '#000';
+        ctx.fillText(`${p.name}`, 0, -82);
         ctx.restore();
 
         const weapon = p.weapon;
@@ -4697,7 +4700,7 @@ export default function App() {
           </motion.div>
         </div>
 
-        <div className="flex items-center gap-4 pointer-events-auto">
+        <div className="absolute top-4 sm:top-6 right-4 sm:right-8 flex items-center gap-4 pointer-events-auto z-[60]">
            <button 
              onClick={() => { sounds.playUIClick(); setShowTree(true); }}
              className="bg-transparent p-4 rounded-full shadow-lg border-4 border-vibrant-dark hover:bg-vibrant-yellow/20 transition-colors"
@@ -5433,7 +5436,7 @@ export default function App() {
 
       {/* Battle HUD */}
       {(gameState === 'BATTLE' || gameState === 'FREE_ARENA') && (
-        <div className="absolute top-20 sm:top-24 left-0 w-full px-4 sm:px-8 pointer-events-none flex flex-col gap-4">
+        <div className="absolute top-6 sm:top-8 left-0 w-full px-4 sm:px-8 pointer-events-none flex flex-col gap-4">
           <div className="flex justify-center">
             <div className="bg-transparent text-vibrant-dark px-4 sm:px-6 py-1 sm:py-2 rounded-full font-black text-xl sm:text-3xl border-2 sm:border-4 border-vibrant-dark shadow-[4px_4px_0_rgba(0,0,0,0.1)] sm:shadow-[6px_6px_0_rgba(0,0,0,0.1)]">
               {formatTime(gameRef.current.battleTimer)}
@@ -5468,7 +5471,7 @@ export default function App() {
           </AnimatePresence>
 
           {menuVisibility.leaderboard && (
-            <div className="absolute top-0 right-4 sm:right-8 w-64 sm:w-80 bg-vibrant-dark/5 backdrop-blur-md rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 z-40 border-2 sm:border-4 border-vibrant-dark/20 flex flex-col gap-2 sm:gap-3 shadow-[4px_4px_0_rgba(0,0,0,0.1)] sm:shadow-[8px_8px_0_rgba(0,0,0,0.1)] max-h-[60vh] overflow-y-auto no-scrollbar pointer-events-auto">
+            <div className="absolute top-28 sm:top-32 right-4 sm:right-8 w-64 sm:w-80 bg-vibrant-dark/5 backdrop-blur-md rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 z-40 border-2 sm:border-4 border-vibrant-dark/20 flex flex-col gap-2 sm:gap-3 shadow-[4px_4px_0_rgba(0,0,0,0.1)] sm:shadow-[8px_8px_0_rgba(0,0,0,0.1)] max-h-[60vh] overflow-y-auto no-scrollbar pointer-events-auto">
               <h3 className="font-black uppercase tracking-tighter text-vibrant-dark text-base sm:text-lg border-b-2 border-vibrant-dark/20 pb-1 sm:pb-2 flex justify-between items-center">
                  Leaderboard
                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-vibrant-yellow" />
@@ -5597,19 +5600,27 @@ export default function App() {
                 ))}
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-col gap-3">
                 <button 
-                  onClick={startBattle}
-                  className="vibrant-button-primary flex-1 text-2xl"
+                  onClick={() => setShowAdVideo(true)}
+                  className="bg-vibrant-yellow text-vibrant-dark py-4 rounded-2xl font-black text-2xl hover:scale-105 transition-all shadow-[0_0_20px_#fde047] w-full"
                 >
-                  PLAY AGAIN
+                  WATCH AD TO RESUME
                 </button>
-                <button 
-                  onClick={() => setGameState('START')}
-                  className="vibrant-button-secondary flex-1 text-2xl"
-                >
-                  MENU
-                </button>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={startBattle}
+                    className="vibrant-button-primary flex-1 text-xl py-3"
+                  >
+                    NEW MATCH
+                  </button>
+                  <button 
+                    onClick={() => setGameState('START')}
+                    className="vibrant-button-secondary flex-1 text-xl py-3"
+                  >
+                    MENU
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -5712,6 +5723,10 @@ export default function App() {
                       player.hp = player.maxHp;
                       player.respawnTimer = 0;
                       (gameRef.current as any).isDefeated = false;
+                      if (gameState === 'BATTLERESULTS') {
+                         gameRef.current.battleTimer = 60; // Add 60 seconds
+                         setGameState('BATTLE');
+                      }
                       const isFreeArena = gameState === 'FREE_ARENA';
                       const arenaW = isFreeArena ? FREE_ARENA_WIDTH : ARENA_WIDTH;
                       player.x = arenaW / 2 + (Math.random() * 400 - 200);
