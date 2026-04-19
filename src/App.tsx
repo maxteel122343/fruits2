@@ -2958,10 +2958,10 @@ export default function App() {
           }
         }
 
-        // Scaling logic for Free Arena
-        if (isFreeArena) {
-          p.scale = 1 + (p.level - 1) * 0.2;
+        if (p.id === 'player') {
+          p.level = level;
         }
+        p.scale = 1 + (p.level - 1) * 0.2;
 
         // AI Logic
         if (p.isAI && p.isGrounded && Math.random() < 0.02) {
