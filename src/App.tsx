@@ -1615,10 +1615,11 @@ export default function App() {
     minimap: true,
     ads: true,
     hiddenCategories: [] as string[],
-    hiddenWeapons: [] as string[]
+    hiddenWeapons: [] as string[],
+    hiddenSkills: [] as string[]
   });
   const [showAdmin, setShowAdmin] = useState(false);
-  const [adminTab, setAdminTab] = useState<'UI' | 'CAT' | 'WEAPON'>('UI');
+  const [adminTab, setAdminTab] = useState<'UI' | 'CAT' | 'WEAPON' | 'SKILL'>('UI');
   const [itemNotif, setItemNotif] = useState<{icon: string, title: string, name: string, color: string} | null>(null);
 
   useEffect(() => {
@@ -4533,7 +4534,11 @@ export default function App() {
         if (newLevel % 3 === 0) {
           const groupID = Math.random().toString(36).substr(2, 9);
           const expiresAt = Date.now() + 7000;
-          const randomSkill = SKILLS[Math.floor(Math.random() * SKILLS.length)];
+          
+          const availableSkills = SKILLS.filter(s => !(menuVisibility.hiddenSkills || []).includes(s.id));
+          const randomSkill = availableSkills.length > 0 
+            ? availableSkills[Math.floor(Math.random() * availableSkills.length)] 
+            : SKILLS[0]; // fallback
           
           const currentNode = EVOLUTION_TREE[currentPath];
           const choiceNodes = currentNode.children.map(id => EVOLUTION_TREE[id]);
@@ -4985,7 +4990,8 @@ export default function App() {
                 {[
                   { id: 'UI', label: 'Geral', icon: '🏠' },
                   { id: 'CAT', label: 'Categorias', icon: '📁' },
-                  { id: 'WEAPON', label: 'Armas', icon: '⚔️' }
+                  { id: 'WEAPON', label: 'Armas', icon: '⚔️' },
+                  { id: 'SKILL', label: 'Skills', icon: '✨' }
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -5073,6 +5079,34 @@ export default function App() {
                     >
                       <motion.div 
                         animate={{ x: !menuVisibility.hiddenWeapons?.includes(weapon.id) ? 24 : 4 }}
+                        className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-md"
+                      />
+                    </button>
+                  </div>
+                  </div>
+                ))}
+
+                {adminTab === 'SKILL' && SKILLS.map((skill) => (
+                  <div key={skill.id} className="flex items-center justify-between p-4 bg-vibrant-dark/5 rounded-2xl border-2 border-vibrant-dark/10">
+                    <div className="flex items-center gap-4">
+                      <span className="text-2xl">{skill.icon}</span>
+                      <div className="flex flex-col">
+                        <div className="font-black uppercase text-vibrant-dark text-xs leading-none mb-1">{skill.name}</div>
+                        <div className="text-[9px] font-bold text-vibrant-dark/30 uppercase">{skill.duration}s DESC.</div>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const hidden = menuVisibility.hiddenSkills || [];
+                        const newHidden = hidden.includes(skill.id) 
+                          ? hidden.filter(id => id !== skill.id)
+                          : [...hidden, skill.id];
+                        saveVisibility({ ...menuVisibility, hiddenSkills: newHidden });
+                      }}
+                      className={`w-14 h-8 rounded-full transition-all relative ${!menuVisibility.hiddenSkills?.includes(skill.id) ? 'bg-vibrant-green' : 'bg-vibrant-dark/20'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: !menuVisibility.hiddenSkills?.includes(skill.id) ? 24 : 4 }}
                         className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-md"
                       />
                     </button>
