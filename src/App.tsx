@@ -1734,6 +1734,29 @@ export default function App() {
           }
         }
       })
+      .on('broadcast', { event: 'deform_terrain' }, ({ payload }) => {
+        deformTerrain(payload.x, payload.radius, payload.depth, true);
+      })
+      .on('broadcast', { event: 'deform_island' }, ({ payload }) => {
+        const obj = gameRef.current.objects.find(o => o.id === payload.id);
+        if (obj) {
+          deformIsland(obj, payload.x, payload.radius, payload.depth, true);
+        }
+      })
+      .on('broadcast', { event: 'spawn_fruit' }, ({ payload }) => {
+        const existing = gameRef.current.battleFruits.find(f => f.id === payload.fruit.id);
+        if (!existing) {
+          gameRef.current.battleFruits.push(payload.fruit);
+        }
+      })
+      .on('broadcast', { event: 'fruit_sliced' }, ({ payload }) => {
+        const fruit = gameRef.current.battleFruits.find(f => f.id === payload.id);
+        if (fruit) fruit.sliced = true;
+      })
+      .on('broadcast', { event: 'score_fruit' }, ({ payload }) => {
+        const fruit = gameRef.current.battleFruits.find(f => f.id === payload.id);
+        if (fruit) fruit.sliced = true;
+      })
       .on('broadcast', { event: 'knockback' }, ({ payload }) => {
         const { targetId, vx, vy } = payload;
         // Apply knockback only if I am the target
@@ -1794,11 +1817,44 @@ export default function App() {
               energy: player.energy,
               name: userName,
               weapon: selectedWeapon,
-              color: player.color
+              color: player.color,
+              scale: player.scale
             }
           }
         });
       }
+      
+      // Also broadcast all local bots that belong to this client!
+      const localBots = gameRef.current.battlePlayers.filter(p => p.isAI && p.id.endsWith(`-${playerIdRef.current}`));
+      localBots.forEach(bot => {
+        channel.send({
+          type: 'broadcast',
+          event: 'update',
+          payload: {
+            id: bot.id,
+            data: {
+              x: bot.x,
+              y: bot.y,
+              vx: bot.vx,
+              vy: bot.vy,
+              angle: bot.angle,
+              va: bot.va,
+              isGrounded: bot.isGrounded,
+              isStuck: bot.isStuck,
+              stuckSide: bot.stuckSide,
+              hp: bot.hp,
+              maxHp: bot.maxHp,
+              level: bot.level,
+              score: bot.score,
+              energy: bot.energy,
+              name: bot.name,
+              weapon: bot.weapon,
+              color: bot.color,
+              scale: bot.scale
+            }
+          }
+        });
+      });
     }, 50);
 
     return () => {
@@ -1892,10 +1948,19 @@ export default function App() {
     return baselineX + h1 + (h2 - h1) * t;
   };
 
-  const deformTerrain = (x: number, radius: number, depth: number) => {
+  const deformTerrain = (x: number, radius: number, depth: number, skipNetwork = false) => {
     const { terrain } = gameRef.current;
     if (!terrain || terrain.length === 0) return;
     
+    // Broadcast terrain change
+    if (!skipNetwork && channelRef.current) {
+        channelRef.current.send({
+           type: 'broadcast',
+           event: 'deform_terrain',
+           payload: { x, radius, depth }
+        });
+    }
+
     const startIndex = Math.max(0, Math.floor((x - radius) / TERRAIN_RES));
     const endIndex = Math.min(terrain.length - 1, Math.floor((x + radius) / TERRAIN_RES));
     
@@ -1909,8 +1974,18 @@ export default function App() {
     }
   };
 
-  const deformIsland = (obj: GameObject, x: number, radius: number, depth: number) => {
+  const deformIsland = (obj: GameObject, x: number, radius: number, depth: number, skipNetwork = false) => {
     if (!obj.terrain || !obj.width) return;
+    
+    // Broadcast island deformation
+    if (!skipNetwork && channelRef.current) {
+        channelRef.current.send({
+           type: 'broadcast',
+           event: 'deform_island',
+           payload: { id: obj.id, x, radius, depth }
+        });
+    }
+
     const startX = obj.x - obj.width / 2;
     const localX = x - startX;
     
@@ -2153,7 +2228,7 @@ export default function App() {
       // Bots
       ...(botsEnabled ? [
         {
-          id: 'ai1',
+          id: `ai1-${playerIdRef.current}`,
           name: 'Ninja Pro',
           x: 100,
           y: ARENA_HEIGHT - 100,
@@ -2178,7 +2253,7 @@ export default function App() {
           maxEnergy: 100,
         },
         {
-          id: 'ai2',
+          id: `ai2-${playerIdRef.current}`,
           name: 'FruitSlayer',
           x: ARENA_WIDTH - 100,
           y: ARENA_HEIGHT - 100,
@@ -2203,7 +2278,7 @@ export default function App() {
           maxEnergy: 100,
         },
         {
-          id: 'ai3',
+          id: `ai3-${playerIdRef.current}`,
           name: 'BladeMaster',
           x: 200,
           y: ARENA_HEIGHT - 100,
@@ -2300,7 +2375,7 @@ export default function App() {
       },
       // Add more AI players for free arena
       ...(botsEnabled ? Array.from({ length: 15 }).map((_, i) => ({
-        id: `ai${i}`,
+        id: `ai${i}-${playerIdRef.current}`,
         name: `Bot ${i + 1}`,
         x: Math.random() * FREE_ARENA_WIDTH,
         y: FREE_ARENA_HEIGHT - 50,
@@ -2731,18 +2806,24 @@ export default function App() {
 
         const fruitScale = 0.6 + Math.random() * 1;
 
-        battleFruits.push({
+        const newFruit = {
           id: Date.now() + Math.random(),
           x: spawnX,
           y: gameRef.current.arenaCameraY - 100,
           vx: (Math.random() - 0.5) * (4 / fruitScale),
           vy: (2 + Math.random() * 3) * (1 / fruitScale),
-          type: 'FRUIT',
+          type: 'FRUIT' as any,
           sliced: false,
           color: ['#FFED4A', '#7AC74F', '#fb923c', '#ef4444', '#a855f7'][Math.floor(Math.random() * 5)],
           label: ['🍎', '🍊', '🍋', '🍉', '🍍', '🥭', '🍐', '🫐', '🍓'][Math.floor(Math.random() * 9)],
           scale: fruitScale
-        });
+        };
+        
+        battleFruits.push(newFruit);
+        
+        if (channelRef.current) {
+            channelRef.current.send({ type: 'broadcast', event: 'spawn_fruit', payload: { fruit: newFruit } });
+        }
       }
 
       // Update Fruits
@@ -3071,12 +3152,17 @@ export default function App() {
                 gameRef.current.battleFruits.forEach(f => {
                   const dist = Math.sqrt((p.x - f.x)**2 + (p.y - f.y)**2);
                   if (dist < 250 * p.scale) {
+                    if (f.sliced) return;
                     f.sliced = true;
                     sounds.playSlice();
                     p.score += 20;
                     if (p.id === 'player') setXp(px => px + 35); // XP bonus for Slam in Battle/Arena
                     createParticles(f.x, f.y, f.color);
                     createSlicedHalves(f.x, f.y, f.label || '🍎', f.color, f.scale);
+                    
+                    if (channelRef.current && p.id === 'player') {
+                        channelRef.current.send({ type: 'broadcast', event: 'fruit_sliced', payload: { id: f.id } });
+                    }
                   }
                 });
                 
@@ -3115,7 +3201,7 @@ export default function App() {
                  const radius = baseRadius * weaponScale * terrainDmg + bounceSpeed * 2;
                  const depth = Math.min(50, bounceSpeed * baseDepth * weaponScale) * terrainDmg;
                  
-                 deformTerrain(p.x, radius, depth);
+                 deformTerrain(p.x, radius, depth, p.id !== 'player');
               }
             }
           }
@@ -3140,23 +3226,14 @@ export default function App() {
             if (isBladeHit || activeSkills['super_cut']) {
                f.sliced = true;
                sounds.playSlice();
-               const pointsMult = activeSkills['super_hot'] ? 2 : 1;
-               const points = Math.round(10 * p.weapon.sweetSpotBonus * (f.y < arenaH * 0.3 ? 2 : 1) * pointsMult);
-               p.score += points;
+               p.score += Math.max(10, Math.floor(100 * p.weapon.sweetSpotBonus * (p.weapon.scoreMultiplier || 1)));
                if (p.id === 'player') {
+                 setXp(px => px + 50);
+                 if (channelRef.current) {
+                     channelRef.current.send({ type: 'broadcast', event: 'fruit_sliced', payload: { id: f.id } });
+                 }
                  sounds.playCollect();
-                 setXp(x => {
-                   const newXp = x + 25 * pointsMult;
-                   if (newXp >= maxXP && isFreeArena) {
-                     p.level += 1;
-                   }
-                   return newXp;
-                 });
-               } else if (p.isAI && isFreeArena) {
-                 p.score += points;
-                 if (p.score % 500 === 0) p.level += 1;
                }
-               p.fruits += 1;
                createParticles(f.x, f.y, f.color);
                createSlicedHalves(f.x, f.y, f.label || '🍎', f.color, f.scale);
                if (p.id === 'player') gameRef.current.shake = 10;
