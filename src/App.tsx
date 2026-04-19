@@ -2266,7 +2266,7 @@ export default function App() {
     gameRef.current.battleFruits = [];
     gameRef.current.particles = [];
     gameRef.current.slicedHalves = [];
-    gameRef.current.arenaCameraY = ARENA_HEIGHT - window.innerHeight + 150;
+    gameRef.current.arenaCameraY = ARENA_HEIGHT - window.innerHeight + 1500;
     setScore(0);
     setEnergy(maxEnergy);
     initTerrain(ARENA_WIDTH, ARENA_HEIGHT); // 800 width for battle arena
@@ -2363,7 +2363,7 @@ export default function App() {
     gameRef.current.battleFruits = [];
     gameRef.current.particles = [];
     gameRef.current.slicedHalves = [];
-    gameRef.current.arenaCameraY = FREE_ARENA_HEIGHT - window.innerHeight + 150;
+    gameRef.current.arenaCameraY = FREE_ARENA_HEIGHT - window.innerHeight + 1500;
     gameRef.current.cameraX = 0;
     setScore(0);
     setEnergy(maxEnergy);
@@ -3315,11 +3315,11 @@ export default function App() {
 
           const targetY = player.y - window.innerHeight / 2;
           gameRef.current.arenaCameraY += (targetY - gameRef.current.arenaCameraY) * 0.1;
-          gameRef.current.arenaCameraY = Math.max(0, Math.min(FREE_ARENA_HEIGHT - window.innerHeight + 150, gameRef.current.arenaCameraY));
+          gameRef.current.arenaCameraY = Math.max(0, Math.min(FREE_ARENA_HEIGHT - window.innerHeight + 1500, gameRef.current.arenaCameraY));
         } else {
           const targetY = player.y - window.innerHeight / 2;
           gameRef.current.arenaCameraY += (targetY - gameRef.current.arenaCameraY) * 0.1;
-          gameRef.current.arenaCameraY = Math.max(0, Math.min(ARENA_HEIGHT - window.innerHeight + 150, gameRef.current.arenaCameraY));
+          gameRef.current.arenaCameraY = Math.max(0, Math.min(ARENA_HEIGHT - window.innerHeight + 1500, gameRef.current.arenaCameraY));
         }
       }
 
@@ -5416,13 +5416,17 @@ export default function App() {
             const isFreeArena = gameState === 'FREE_ARENA';
             const arenaW = isFreeArena ? FREE_ARENA_WIDTH : ARENA_WIDTH;
             const arenaH = isFreeArena ? FREE_ARENA_HEIGHT : ARENA_HEIGHT;
+            
+            const baseBottomLimit = arenaH - window.innerHeight;
+            const minimapCameraY = gameRef.current && gameRef.current.arenaCameraY > baseBottomLimit ? gameRef.current.arenaCameraY - baseBottomLimit : 0;
+            
             return (
               <motion.div 
                 key={p.id}
                 className={`absolute w-2 h-2 rounded-full ${p.id === 'player' ? 'bg-vibrant-green shadow-[0_0_10px_#4ade80]' : 'bg-vibrant-red shadow-[0_0_10px_#ef4444]'}`}
                 style={{
                   left: `${(p.x / arenaW) * 100}%`,
-                  top: `${(p.y / arenaH) * 100}%`,
+                  top: `${((p.y - minimapCameraY) / arenaH) * 100}%`,
                   transform: 'translate(-50%, -50%)'
                 }}
               />
