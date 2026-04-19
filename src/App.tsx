@@ -2887,6 +2887,11 @@ export default function App() {
         if (isRemote) return;
 
         // Custom Defeat Hook for local player
+        if (p.id === 'player' && (gameRef.current as any).isDefeated) {
+          p.respawnTimer = 999999; // Force prevent auto-respawns
+          return;
+        }
+
         if (p.id === 'player' && p.hp <= 0 && !(gameRef.current as any).isDefeated) {
           (gameRef.current as any).isDefeated = true;
           p.respawnTimer = 999999; // Suspend standard automatic respawn
