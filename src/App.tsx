@@ -2222,7 +2222,7 @@ export default function App() {
     gameRef.current.battleFruits = [];
     gameRef.current.particles = [];
     gameRef.current.slicedHalves = [];
-    gameRef.current.arenaCameraY = ARENA_HEIGHT - window.innerHeight;
+    gameRef.current.arenaCameraY = ARENA_HEIGHT - window.innerHeight + 150;
     setScore(0);
     setEnergy(maxEnergy);
     initTerrain(ARENA_WIDTH, ARENA_HEIGHT); // 800 width for battle arena
@@ -2321,7 +2321,7 @@ export default function App() {
     gameRef.current.battleFruits = [];
     gameRef.current.particles = [];
     gameRef.current.slicedHalves = [];
-    gameRef.current.arenaCameraY = FREE_ARENA_HEIGHT - window.innerHeight;
+    gameRef.current.arenaCameraY = FREE_ARENA_HEIGHT - window.innerHeight + 150;
     gameRef.current.cameraX = 0;
     setScore(0);
     setEnergy(maxEnergy);
@@ -2927,18 +2927,21 @@ export default function App() {
             const stickSuccess = (isTipDown || activeSkills['perfect_stick']) && Math.random() < stickChance;
 
             if (stickSuccess) {
+              const impactVx = p.vx;
+              const impactVy = p.vy;
+
               p.y = groundY + 5; // Penetrate slightly
               p.vx = 0; p.vy = 0; p.va = 0;
               p.isGrounded = true;
               sounds.playStick();
               
-              const pSpeed = Math.sqrt(p.vx * p.vx + (p.vy - GRAVITY) * (p.vy - GRAVITY));
+              const pSpeed = Math.sqrt(impactVx * impactVx + impactVy * impactVy);
               const isHeavyImpact = pSpeed > 10 || gameRef.current.isSlamming;
 
               // Deform Terrain on stick (all players + bots, proportional to speed)
-              const impactSpeed = Math.abs(p.vy);
-              if (impactSpeed > 3) {
-                const deformDepth = Math.min(50, impactSpeed * 0.8) + (gameRef.current.isSlamming && p.id === 'player' ? 30 : 0);
+              const impactSpeedY = Math.abs(impactVy);
+              if (impactSpeedY > 3) {
+                const deformDepth = Math.min(50, impactSpeedY * 1.5) + (gameRef.current.isSlamming && p.id === 'player' ? 30 : 0);
                 deformTerrain(p.x, 60, deformDepth);
               }
 
@@ -3222,14 +3225,14 @@ export default function App() {
         if (isFreeArena) {
           gameRef.current.cameraX += (player.x - window.innerWidth / 2 - gameRef.current.cameraX) * 0.1;
           gameRef.current.cameraX = Math.max(0, Math.min(FREE_ARENA_WIDTH - window.innerWidth, gameRef.current.cameraX));
-          
+
           const targetY = player.y - window.innerHeight / 2;
           gameRef.current.arenaCameraY += (targetY - gameRef.current.arenaCameraY) * 0.1;
-          gameRef.current.arenaCameraY = Math.max(0, Math.min(FREE_ARENA_HEIGHT - window.innerHeight, gameRef.current.arenaCameraY));
+          gameRef.current.arenaCameraY = Math.max(0, Math.min(FREE_ARENA_HEIGHT - window.innerHeight + 150, gameRef.current.arenaCameraY));
         } else {
           const targetY = player.y - window.innerHeight / 2;
           gameRef.current.arenaCameraY += (targetY - gameRef.current.arenaCameraY) * 0.1;
-          gameRef.current.arenaCameraY = Math.max(0, Math.min(ARENA_HEIGHT - window.innerHeight, gameRef.current.arenaCameraY));
+          gameRef.current.arenaCameraY = Math.max(0, Math.min(ARENA_HEIGHT - window.innerHeight + 150, gameRef.current.arenaCameraY));
         }
       }
 
