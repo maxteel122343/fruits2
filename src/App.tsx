@@ -2592,13 +2592,35 @@ export default function App() {
         sounds.playFlip();
         const jumpForce = JUMP_FORCE * knife.weapon.swingSpeedMult;
         const flipSpeed = FLIP_SPEED * knife.weapon.swingSpeedMult;
+        
+        // Wall Climb Interaction: Click on same side of wall to climb UP
+        const arenaW_classic = 15000;
+        const leftW = getWallX(knife.y, 0, 'left');
+        const rightW = getWallX(knife.y, arenaW_classic, 'right');
+        const isOnLeft = knife.x <= leftW + 30;
+        const isOnRight = knife.x >= rightW - 30;
+        
+        const rect = canvasRef.current?.getBoundingClientRect();
+        let jumpDir = 1;
+        if (rect) {
+          const mx = e.clientX - rect.left;
+          jumpDir = mx < rect.width / 2 ? -1 : 1;
+        }
+
+        if (activeSkills['wall_climb'] && ((isOnLeft && jumpDir === -1) || (isOnRight && jumpDir === 1))) {
+            knife.vy = jumpForce * 1.3; // Specific Climbing Boost
+            knife.vx = 0;
+            knife.va = flipSpeed * 0.5; // Less rotation during vertical climb
+            knife.isGrounded = false;
+            knife.isStuck = false;
+            sounds.playFlip();
+            return;
+        }
+
         knife.vy = jumpForce * (knife.isGrounded ? 1 : 0.8); // Air flip is slightly weaker
         
         // Jump direction based on click position
-        const rect = canvasRef.current?.getBoundingClientRect();
         if (rect) {
-          const mx = e.clientX - rect.left;
-          const jumpDir = mx < rect.width / 2 ? -1 : 1;
           const agilityMultiplier = knife.weapon.agility ?? 0.3;
           knife.vx = jumpDir * (5 + agilityMultiplier * 5);
           
@@ -2665,13 +2687,35 @@ export default function App() {
           sounds.playFlip();
           const jumpForce = JUMP_FORCE * player.weapon.swingSpeedMult;
           const flipSpeed = FLIP_SPEED * player.weapon.swingSpeedMult;
-          player.vy = jumpForce * (player.isGrounded ? 1 : 0.8);
           
           // Jump direction in battle
           const rect = canvasRef.current?.getBoundingClientRect();
+          let jumpDir = 1;
           if (rect) {
              const mx = e.clientX - rect.left;
-             const jumpDir = mx < rect.width / 2 ? -1 : 1;
+             jumpDir = mx < rect.width / 2 ? -1 : 1;
+          }
+
+          // Wall Climb Interaction in Battle
+          const arenaW_battle = gameState === 'FREE_ARENA' ? FREE_ARENA_WIDTH : ARENA_WIDTH;
+          const leftW = getWallX(player.y, 0, 'left');
+          const rightW = getWallX(player.y, arenaW_battle, 'right');
+          const isOnLeft = player.x <= leftW + 30;
+          const isOnRight = player.x >= rightW - 30;
+
+          if (activeSkills['wall_climb'] && ((isOnLeft && jumpDir === -1) || (isOnRight && jumpDir === 1))) {
+              player.vy = jumpForce * 1.3;
+              player.vx = 0;
+              player.va = flipSpeed * 0.5;
+              player.isGrounded = false;
+              player.isStuck = false;
+              sounds.playFlip();
+              return;
+          }
+
+          player.vy = jumpForce * (player.isGrounded ? 1 : 0.8);
+          
+          if (rect) {
              const agilityMultiplier = player.weapon.agility ?? 0.3;
              player.vx = jumpDir * (5 + agilityMultiplier * 5);
           } else {
