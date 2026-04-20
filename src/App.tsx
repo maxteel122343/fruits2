@@ -3071,12 +3071,17 @@ export default function App() {
           const rightW = getWallX(p.y, arenaW, 'right');
 
           if (!isFreeArena && activeSkills['wall_climb'] && (p.x <= leftW || p.x >= rightW)) {
-            p.vy = -2;
-            p.vx = 0;
-            p.va = 0;
-            p.angle = p.x <= leftW ? -Math.PI/2 : Math.PI/2;
-            if (p.id === 'player') {
-                deformWall(p.y, 40, 0.5, p.x <= leftW ? 'left' : 'right');
+            // Only stick if we aren't already jumping AWAY from the wall
+            const isMovingAway = (p.x <= leftW && p.vx > 0.1) || (p.x >= rightW && p.vx < -0.1);
+            
+            if (!isMovingAway) {
+                p.vy = -3.5; // Slightly faster climbing
+                p.vx = 0;
+                p.va = 0;
+                p.angle = p.x <= leftW ? -Math.PI/2 : Math.PI/2;
+                if (p.id === 'player') {
+                    deformWall(p.y, 40, 0.5, p.x <= leftW ? 'left' : 'right');
+                }
             }
           }
 
