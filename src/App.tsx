@@ -5,7 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, RotateCcw, Play, Sword, Settings, X, Zap, LayoutGrid } from 'lucide-react';
+import { Trophy, RotateCcw, Play, Sword, Settings, X, Zap, LayoutGrid, Lock, Coins } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 // --- Sound Manager (ASMR) ---
@@ -247,7 +247,10 @@ interface WeaponConfig {
   hiltDurability: number; // HP
   maxEnergy?: number; // Stamina (0 to 100)
   knockbackForce?: number; // Impact factor (0 to 1)
-  terrainDamage?: number; // Ground dig capability multiplier
+  stickProbability: number; // probability (0 to 1)
+  stickProbability: number; // probability (0 to 1)
+  price?: number; // Cost to unlock
+  specialType?: 'SABER' | 'HAMMER' | 'HOLY'; // Special ability identifier
   bounciness: number; // restitution
   stunDuration: number; // seconds
   // Movement
@@ -314,6 +317,7 @@ const WEAPON_PRESETS: WeaponConfig[] = [
     maxEnergy: 100,
     knockbackForce: 0.4,
     color: '#94a3b8',
+    price: 0,
     description: 'Equilibrada e afiada. O padrão para profissionais.'
   },
   {
@@ -467,7 +471,6 @@ const WEAPON_PRESETS: WeaponConfig[] = [
     id: 'peeler',
     name: 'Descascador',
     icon: '🥔',
-    spriteUrl: '/peeler.png', // Using the sprite provided by the user
     category: 'Cozinha',
     sharpnessFactor: 0.5,
     edgeLength: 0.3,
@@ -908,8 +911,88 @@ const WEAPON_PRESETS: WeaponConfig[] = [
     damageValue: 99,
     critChance: 0.8,
     critDamage: 2.0,
-    color: '#00ffff',
-    description: 'Ignora densidade. Corte instantâneo de plasma.'
+    color: '#ef4444',
+    specialType: 'SABER',
+    price: 45000,
+    description: 'Sabre Sith clássico. Ignora densidade.'
+  },
+  {
+    id: 'saber_blue',
+    name: 'Sabre Jedi (Azul)',
+    icon: '✨',
+    category: 'Fantasia',
+    sharpnessFactor: 1.0,
+    edgeLength: 0.9,
+    penetrationLoss: 0.0,
+    sweetSpotBonus: 2.0,
+    mass: 0.5,
+    centerOfGravity: 0.1,
+    aerodynamics: 0.0,
+    hiltDurability: 1200,
+    bounciness: 0.0,
+    stunDuration: 0.5,
+    swingSpeedMult: 1.8,
+    wallStickForce: 1.0,
+    stickProbability: 1.0,
+    damageValue: 95,
+    critChance: 0.7,
+    critDamage: 2.0,
+    color: '#3b82f6',
+    specialType: 'SABER',
+    price: 45000,
+    description: 'Lâmina de plasma azul para equilíbrio e defesa.'
+  },
+  {
+    id: 'saber_yellow',
+    name: 'Sabre Guardião (Amarelo)',
+    icon: '✨',
+    category: 'Fantasia',
+    sharpnessFactor: 1.0,
+    edgeLength: 0.9,
+    penetrationLoss: 0.0,
+    sweetSpotBonus: 2.0,
+    mass: 0.5,
+    centerOfGravity: 0.1,
+    aerodynamics: 0.0,
+    hiltDurability: 1100,
+    bounciness: 0.0,
+    stunDuration: 0.5,
+    swingSpeedMult: 1.8,
+    wallStickForce: 1.0,
+    stickProbability: 1.0,
+    damageValue: 92,
+    critChance: 0.75,
+    critDamage: 2.2,
+    color: '#eab308',
+    specialType: 'SABER',
+    price: 50000,
+    description: 'Raro sabre amarelo usado pelos sentinelas.'
+  },
+  {
+    id: 'saber_green',
+    name: 'Sabre Mestre (Verde)',
+    icon: '✨',
+    category: 'Fantasia',
+    sharpnessFactor: 1.0,
+    edgeLength: 0.9,
+    penetrationLoss: 0.0,
+    sweetSpotBonus: 2.5,
+    mass: 0.5,
+    centerOfGravity: 0.1,
+    aerodynamics: 0.0,
+    hiltDurability: 1500,
+    bounciness: 0.0,
+    stunDuration: 0.5,
+    swingSpeedMult: 1.8,
+    wallStickForce: 1.0,
+    stickProbability: 1.0,
+    damageValue: 90,
+    critChance: 0.6,
+    critDamage: 2.0,
+    color: '#22c55e',
+    specialType: 'SABER',
+    price: 48000,
+    description: 'Focado em sabedoria e golpes precisos.'
   },
   {
     id: 'doubleaxe',
@@ -1068,7 +1151,34 @@ const WEAPON_PRESETS: WeaponConfig[] = [
     wallStickForce: 0.9,
     stickProbability: 0.9,
     color: '#64748b',
+    price: 35000,
     description: 'Três lâminas indestrutíveis e rápidas.'
+  },
+  {
+    id: 'frost_mourne',
+    name: 'Gelo Eterno',
+    icon: '🧊',
+    spriteUrl: '/frost_mourne.png',
+    category: 'Fantasia',
+    price: 50000,
+    sharpnessFactor: 1.0,
+    edgeLength: 1.8,
+    penetrationLoss: 0.05,
+    sweetSpotBonus: 2.8,
+    mass: 1.8,
+    centerOfGravity: 0.35,
+    aerodynamics: 0.03,
+    hiltDurability: 1000,
+    bounciness: 0.1,
+    stunDuration: 3.0,
+    swingSpeedMult: 0.9,
+    wallStickForce: 0.95,
+    stickProbability: 0.9,
+    damageValue: 95,
+    critChance: 0.4,
+    critDamage: 3.0,
+    color: '#bae6fd',
+    description: 'Uma lâmina lendária que congela a própria alma dos frutos.'
   },
 
   // --- Tactical and Modern ---
@@ -1180,7 +1290,9 @@ const WEAPON_PRESETS: WeaponConfig[] = [
     critChance: 0.2,
     critDamage: 2.5,
     color: '#fbbf24',
-    description: 'A lendária espada do Rei Arthur. Divina.'
+    specialType: 'HOLY',
+    price: 100000,
+    description: 'A lendária espada do Rei Arthur. Divina e protetora.'
   },
   {
     id: 'mjolnir',
@@ -1204,7 +1316,9 @@ const WEAPON_PRESETS: WeaponConfig[] = [
     critChance: 0.5,
     critDamage: 5.0,
     color: '#94a3b8',
-    description: 'O martelo de Thor. Peso incomensurável.'
+    specialType: 'HAMMER',
+    price: 150000,
+    description: 'O martelo de Thor. Controle o trovão e o voo.'
   },
   {
     id: 'gungnir',
@@ -1394,28 +1508,28 @@ const WEAPON_PRESETS: WeaponConfig[] = [
     description: 'Swing longo com peso concentrado na ponta.'
   },
   {
-    id: 'skateboard',
-    name: 'Skate',
-    icon: '🛹',
+    id: 'baseball_bat',
+    name: 'Taco de Baseball',
+    icon: '⚾',
     category: 'Esportes',
     sharpnessFactor: 0.2,
     edgeLength: 1.0,
     penetrationLoss: 0.1,
     sweetSpotBonus: 1.5,
-    mass: 3.0,
-    centerOfGravity: 0.5,
-    aerodynamics: 0.2,
-    hiltDurability: 350,
-    bounciness: 0.4,
-    stunDuration: 1.0,
-    swingSpeedMult: 0.7,
-    wallStickForce: 0.2,
-    stickProbability: 0.8, // Heavy Skateboard = High Assertiveness
-    damageValue: 55,
-    critChance: 0.15,
-    critDamage: 1.8,
-    color: '#1e293b',
-    description: 'Impacto de madeira e metal em alta velocidade.'
+    mass: 2.5,
+    centerOfGravity: 0.8,
+    aerodynamics: 0.1,
+    hiltDurability: 400,
+    bounciness: 0.9,
+    stunDuration: 1.2,
+    swingSpeedMult: 0.9,
+    wallStickForce: 0.3,
+    stickProbability: 0.85,
+    damageValue: 60,
+    critChance: 0.2,
+    critDamage: 2.5,
+    color: '#d97706',
+    description: 'Clássico taco de madeira para rebater alvos com força.'
   }
 ];
 
@@ -1567,6 +1681,257 @@ const EVOLUTION_POSITIONS: Record<string, { x: number, y: number }> = {
   mythic_combat: { x: 90, y: 35 }
 };
 
+
+const WeaponCanvas = ({ weapon, size = 100 }: { weapon: WeaponConfig, size?: number }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (weapon.spriteUrl) {
+      const img = new Image();
+      img.src = weapon.spriteUrl;
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(Math.PI / 4); // Standing up
+        const spriteSize = size * 0.8 * (weapon.edgeLength || 1);
+        if (weapon.category === 'Fantasia' || (weapon.price || 0) > 10000) {
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = weapon.color || '#FFF';
+        }
+        ctx.drawImage(img, -spriteSize/2, -spriteSize/2, spriteSize, spriteSize);
+        ctx.restore();
+      };
+      return;
+    }
+
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(-Math.PI / 4);
+    
+    const handleLen = 30;
+    const bladeLen = 60 * weapon.edgeLength;
+    
+    // Add Aura for Fantasy Weapons
+    if (weapon.category === 'Fantasia' || (weapon.price || 0) > 10000) {
+      ctx.shadowBlur = 25;
+      ctx.shadowColor = weapon.color || '#FFF';
+    }
+    
+    const totalLen = handleLen + bladeLen;
+    const pivotX = -handleLen + (weapon.centerOfGravity || 0.5) * totalLen;
+    
+    const scale = (size / 100) * 0.7;
+    ctx.scale(scale, scale);
+    ctx.translate(-pivotX, 0);
+
+    const drawBlade = (width: number, height: number, color = '#FFF') => {
+        ctx.fillStyle = color; 
+        ctx.beginPath();
+        ctx.moveTo(0, -height/2); 
+        ctx.lineTo(width - 10, -height/2); 
+        ctx.lineTo(width, 0); 
+        ctx.lineTo(width - 10, height/2); 
+        ctx.lineTo(0, height/2);
+        ctx.closePath(); 
+        ctx.fill(); 
+        ctx.strokeStyle = '#2B2D42'; 
+        ctx.lineWidth = 2; 
+        ctx.stroke(); 
+    };
+    
+    const drawHandle = (length: number, height: number) => {
+        ctx.fillStyle = weapon.color || '#475569'; 
+        ctx.fillRect(-length, -height/2, length, height);
+        ctx.strokeStyle = '#2B2D42'; 
+        ctx.lineWidth = 2; 
+        ctx.strokeRect(-length, -height/2, length, height);
+    };
+
+    switch(weapon.id) {
+        case 'katana': drawHandle(handleLen, 10); drawBlade(bladeLen, 6); break;
+        case 'cleaver': 
+            drawHandle(handleLen * 1.5, 8); 
+            ctx.fillStyle = '#FFF'; ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(30, -30); ctx.lineTo(35, 30); ctx.lineTo(0, 20); ctx.closePath(); ctx.fill(); ctx.stroke(); 
+            break;
+        case 'mjolnir': 
+            drawHandle(handleLen * 1.2, 12); 
+            ctx.fillStyle = '#94a3b8'; ctx.fillRect(0, -25, 40, 50); ctx.strokeRect(0, -25, 40, 50); 
+            break;
+        case 'lightsaber': drawHandle(handleLen, 12); drawBlade(bladeLen, 10, weapon.color); break;
+        case 'chainsaw': drawHandle(handleLen, 15); ctx.fillStyle = '#ef4444'; ctx.fillRect(0, -15, 80, 30); ctx.strokeRect(0, -15, 80, 30); break;
+        case 'fork':
+            drawHandle(handleLen, 10);
+            ctx.strokeStyle = '#2B2D42'; ctx.lineWidth = 3;
+            for (let i = -1.5; i <= 1.5; i++) {
+                ctx.beginPath(); ctx.moveTo(0, i * 4); ctx.lineTo(bladeLen, i * 4); ctx.stroke();
+            }
+            break;
+        case 'scissors':
+            ctx.save(); ctx.rotate(Math.PI / 8); drawHandle(handleLen, 6); drawBlade(bladeLen, 6); ctx.restore();
+            ctx.save(); ctx.rotate(-Math.PI / 8); drawHandle(handleLen, 6); drawBlade(bladeLen, 6); ctx.restore();
+            break;
+        case 'pizza':
+            drawHandle(handleLen, 8);
+            ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.arc(bladeLen/2, 0, 25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            break;
+        case 'lumberjack':
+            drawHandle(handleLen * 2, 8);
+            ctx.fillStyle = '#475569'; ctx.beginPath(); ctx.moveTo(0, -30); ctx.quadraticCurveTo(40, 0, 0, 30); ctx.lineTo(-10, 20); ctx.lineTo(-10, -20); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'pickaxe':
+            drawHandle(handleLen * 2, 8);
+            ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(0, -40); ctx.quadraticCurveTo(20, 0, 0, 40); ctx.lineTo(5, 40); ctx.quadraticCurveTo(25, 0, 5, -40); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'shovel':
+            drawHandle(handleLen * 2.5, 6);
+            ctx.fillStyle = '#475569'; ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(40, -20); ctx.lineTo(45, 0); ctx.lineTo(40, 20); ctx.lineTo(0, 25); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'crowbar':
+            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(-handleLen, 0); ctx.lineTo(bladeLen, 0); ctx.quadraticCurveTo(bladeLen + 15, 0, bladeLen + 15, -20); ctx.stroke();
+            break;
+        case 'scythe':
+            drawHandle(handleLen * 3, 8);
+            ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(60, -80, 100, -20); ctx.lineTo(90, -25); ctx.quadraticCurveTo(55, -70, 0, -5); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'boomerang':
+            ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(50, -50); ctx.lineTo(60, -40); ctx.lineTo(0, 20); ctx.lineTo(-60, -40); ctx.lineTo(-50, -50); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'claws':
+            drawHandle(handleLen/2, 20);
+            ctx.strokeStyle = '#64748b'; ctx.lineWidth = 4;
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath(); ctx.moveTo(0, i * 8); ctx.quadraticCurveTo(40, i * 8, 50, i * 8 + 10); ctx.stroke();
+            }
+            break;
+        case 'shuriken':
+            ctx.fillStyle = '#1e293b'; ctx.beginPath();
+            for (let i = 0; i < 4; i++) {
+                ctx.rotate(Math.PI / 2);
+                ctx.moveTo(0, 0); ctx.lineTo(30, 0); ctx.lineTo(15, 15); ctx.closePath();
+            }
+            ctx.fill(); ctx.stroke();
+            break;
+        case 'handsaw':
+            drawHandle(handleLen, 15);
+            ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(bladeLen, -5); ctx.lineTo(bladeLen, 5); ctx.lineTo(0, 15);
+            for (let x = bladeLen; x > 0; x -= 10) { ctx.lineTo(x, 15); ctx.lineTo(x - 5, 20); }
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'peeler':
+            drawHandle(handleLen, 8);
+            ctx.strokeStyle = '#64748b'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(25, -12); ctx.lineTo(25, 12); ctx.lineTo(0, 12); ctx.stroke();
+            ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(8, -10); ctx.lineTo(18, -10); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(8, 10); ctx.lineTo(18, 10); ctx.stroke();
+            break;
+        case 'golf':
+            drawHandle(handleLen * 4, 5);
+            ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.ellipse(5, 0, 18, 12, Math.PI/4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            break;
+        case 'baseball':
+            ctx.fillStyle = '#d97706'; ctx.beginPath(); ctx.moveTo(-handleLen, -4); ctx.lineTo(0, -6); ctx.lineTo(bladeLen, -14);
+            ctx.quadraticCurveTo(bladeLen + 12, 0, bladeLen, 14); ctx.lineTo(0, 6); ctx.lineTo(-handleLen, 4);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'longsword':
+            drawHandle(handleLen, 10);
+            ctx.fillStyle = '#94a3b8'; ctx.fillRect(0, -25, 6, 50); ctx.strokeRect(0, -25, 6, 50);
+            drawBlade(bladeLen, 12);
+            break;
+        case 'giant':
+            drawHandle(handleLen * 1.5, 15);
+            ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(bladeLen, -20); ctx.lineTo(bladeLen, 20); ctx.lineTo(0, 25); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'rapier':
+            drawHandle(handleLen, 8);
+            ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(-5, 0, 20, -Math.PI/2, Math.PI/2); ctx.stroke();
+            drawBlade(bladeLen, 4);
+            break;
+        case 'dagger':
+            drawHandle(handleLen * 0.7, 8); drawBlade(bladeLen * 0.5, 8);
+            break;
+        case 'halberd':
+            drawHandle(handleLen * 5, 8);
+            ctx.fillStyle = '#475569';
+            ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(40, 0); ctx.lineTo(0, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, -30); ctx.quadraticCurveTo(15, -15, 0, 0); ctx.lineTo(-15, -15); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'scimitar':
+            drawHandle(handleLen, 10);
+            ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(bladeLen/2, -30, bladeLen, 0);
+            ctx.lineTo(bladeLen - 10, 15); ctx.quadraticCurveTo(bladeLen/2, -15, 0, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'karambit':
+            drawHandle(handleLen * 0.8, 12);
+            ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(30, -30, 45, 0); ctx.lineTo(40, 5);
+            ctx.quadraticCurveTo(25, -20, 0, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'balisong':
+            ctx.save(); ctx.rotate(Math.PI/10); drawHandle(handleLen, 6); ctx.restore();
+            ctx.save(); ctx.rotate(-Math.PI/10); drawHandle(handleLen, 6); ctx.restore();
+            drawBlade(bladeLen * 0.7, 5);
+            break;
+        case 'machete':
+            drawHandle(handleLen, 10);
+            ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(bladeLen, -15); ctx.lineTo(bladeLen + 8, 25); ctx.lineTo(0, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'tomahawk':
+            drawHandle(handleLen * 2, 8);
+            ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(25, -20); ctx.lineTo(25, 0); ctx.lineTo(0, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'excalibur':
+            drawHandle(handleLen, 12);
+            ctx.fillStyle = '#fbbf24'; ctx.fillRect(0, -25, 8, 50); ctx.strokeRect(0, -25, 8, 50);
+            drawBlade(bladeLen, 15, '#fbbf24');
+            break;
+        case 'gungnir':
+            drawHandle(handleLen * 4, 6);
+            ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(45, 0); ctx.lineTo(0, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'muramasa':
+            drawHandle(handleLen, 8); drawBlade(bladeLen, 5, '#1e293b');
+            ctx.shadowBlur = 10; ctx.shadowColor = '#ef4444'; ctx.strokeStyle = '#ef4444'; ctx.stroke();
+            break;
+        case 'cricket':
+            drawHandle(handleLen * 1.5, 10);
+            ctx.fillStyle = '#78350f'; ctx.beginPath(); ctx.roundRect(0, -20, bladeLen, 40, 5); ctx.fill(); ctx.stroke();
+            break;
+        case 'ruler':
+            ctx.fillStyle = '#94a3b8'; ctx.fillRect(-handleLen, -10, handleLen + bladeLen, 20); ctx.strokeRect(-handleLen, -10, handleLen + bladeLen, 20);
+            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+            for (let x = -handleLen; x < bladeLen; x += 15) { ctx.beginPath(); ctx.moveTo(x, -10); ctx.lineTo(x, -3); ctx.stroke(); }
+            break;
+        case 'pencil':
+            ctx.fillStyle = '#eab308'; ctx.fillRect(-handleLen, -5, handleLen + bladeLen - 15, 10);
+            ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.moveTo(bladeLen - 15, -5); ctx.lineTo(bladeLen, 0); ctx.lineTo(bladeLen - 15, 5); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(bladeLen - 5, -2); ctx.lineTo(bladeLen, 0); ctx.lineTo(bladeLen - 5, 2); ctx.closePath(); ctx.fill();
+            break;
+        case 'compass':
+            ctx.save(); ctx.rotate(Math.PI/12); drawHandle(handleLen * 2, 4); ctx.restore();
+            ctx.save(); ctx.rotate(-Math.PI/12); drawHandle(handleLen * 2, 4); ctx.restore();
+            break;
+        case 'letteropener':
+            drawHandle(handleLen * 0.6, 6); drawBlade(bladeLen * 0.6, 6);
+            break;
+        default: drawHandle(handleLen, 10); drawBlade(bladeLen, 10); break;
+    }
+
+    ctx.restore();
+  }, [weapon, size]);
+
+  return <canvas ref={canvasRef} width={size * 1.5} height={size * 1.5} className="w-full h-full object-contain" />;
+};
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState<GameState>('START');
@@ -1575,6 +1940,17 @@ export default function App() {
   const [selectedWeapon, setSelectedWeapon] = useState<WeaponConfig>(WEAPON_PRESETS[0]);
   const [activeCategory, setActiveCategory] = useState('Cozinha');
   const [userName, setUserName] = useState('Player');
+  const [totalPoints, setTotalPoints] = useState<number>(() => {
+    const saved = localStorage.getItem('slacePoints');
+    return saved ? parseInt(saved) : 0;
+  });
+  const [unlockedWeapons, setUnlockedWeapons] = useState<string[]>(() => {
+    const saved = localStorage.getItem('unlockedWeapons');
+    return saved ? JSON.parse(saved) : ['chef'];
+  });
+
+  useEffect(() => { localStorage.setItem('slacePoints', totalPoints.toString()); }, [totalPoints]);
+  useEffect(() => { localStorage.setItem('unlockedWeapons', JSON.stringify(unlockedWeapons)); }, [unlockedWeapons]);
   const [hp, setHp] = useState(100);
   const [maxHp, setMaxHp] = useState(100);
   const [uiTrigger, setUiTrigger] = useState(0);
@@ -1898,6 +2274,20 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // Keyboard State
+  const keysRef = useRef<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => { keysRef.current[e.code] = true; };
+    const handleKeyUp = (e: KeyboardEvent) => { keysRef.current[e.code] = false; };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
   // Game Ref State (to avoid re-renders in game loop)
   const gameRef = useRef({
     knife: {
@@ -1939,6 +2329,9 @@ export default function App() {
     leftWall: [] as number[],
     rightWall: [] as number[],
     hitCooldowns: {} as Record<string, number>, // lastHitTime per 'attackerId->targetId'
+    isSpecialActive: false,
+    specialKeyWasDown: false,
+    localIsStuck: false,
   });
 
   const getTerrainY = (x: number, baseline: number) => {
@@ -2421,29 +2814,23 @@ export default function App() {
       })) : [])
     ];
 
-    // Exactly 2 suspended platforms for Free Arena
-    const platforms: GameObject[] = [
-      {
-        id: Date.now(),
+    // Exactly 12 large islands for Free Arena
+    const platforms: GameObject[] = Array.from({ length: 12 }).map((_, i) => {
+      // Space them out across the 50k width
+      const x = 3000 + i * (FREE_ARENA_WIDTH / 13);
+      // Random height within the middle 40% of the arena
+      const y = FREE_ARENA_HEIGHT * (0.3 + Math.random() * 0.4);
+      return {
+        id: Date.now() + i,
         type: 'PLATFORM',
-        x: 400 * 0.3, // proportional 
-        y: FREE_ARENA_HEIGHT * 0.4,
+        x,
+        y,
         sliced: false,
         color: '#475569',
-        width: 800 * 0.3,
-        height: 60,
-      },
-      {
-        id: Date.now() + 1,
-        type: 'PLATFORM',
-        x: FREE_ARENA_WIDTH - 400 * 0.3,
-        y: FREE_ARENA_HEIGHT * 0.6,
-        sliced: false,
-        color: '#475569',
-        width: 800 * 0.3,
-        height: 60,
-      }
-    ];
+        width: 1200, // 5x larger than battle (200 * 5 = 1000, user asked for large so 1200)
+        height: 300, // Thick islands as requested
+      };
+    });
     
     // Initialize procedural terrain for each island
     platforms.forEach(p => {
@@ -2592,35 +2979,13 @@ export default function App() {
         sounds.playFlip();
         const jumpForce = JUMP_FORCE * knife.weapon.swingSpeedMult;
         const flipSpeed = FLIP_SPEED * knife.weapon.swingSpeedMult;
-        
-        // Wall Climb Interaction: Click on same side of wall to climb UP
-        const arenaW_classic = 15000;
-        const leftW = getWallX(knife.y, 0, 'left');
-        const rightW = getWallX(knife.y, arenaW_classic, 'right');
-        const isOnLeft = knife.x <= leftW + 30;
-        const isOnRight = knife.x >= rightW - 30;
-        
-        const rect = canvasRef.current?.getBoundingClientRect();
-        let jumpDir = 1;
-        if (rect) {
-          const mx = e.clientX - rect.left;
-          jumpDir = mx < rect.width / 2 ? -1 : 1;
-        }
-
-        if (activeSkills['wall_climb'] && ((isOnLeft && jumpDir === -1) || (isOnRight && jumpDir === 1))) {
-            knife.vy = jumpForce * 1.3; // Specific Climbing Boost
-            knife.vx = 0;
-            knife.va = flipSpeed * 0.5; // Less rotation during vertical climb
-            knife.isGrounded = false;
-            knife.isStuck = false;
-            sounds.playFlip();
-            return;
-        }
-
         knife.vy = jumpForce * (knife.isGrounded ? 1 : 0.8); // Air flip is slightly weaker
         
         // Jump direction based on click position
+        const rect = canvasRef.current?.getBoundingClientRect();
         if (rect) {
+          const mx = e.clientX - rect.left;
+          const jumpDir = mx < rect.width / 2 ? -1 : 1;
           const agilityMultiplier = knife.weapon.agility ?? 0.3;
           knife.vx = jumpDir * (5 + agilityMultiplier * 5);
           
@@ -2687,35 +3052,13 @@ export default function App() {
           sounds.playFlip();
           const jumpForce = JUMP_FORCE * player.weapon.swingSpeedMult;
           const flipSpeed = FLIP_SPEED * player.weapon.swingSpeedMult;
+          player.vy = jumpForce * (player.isGrounded ? 1 : 0.8);
           
           // Jump direction in battle
           const rect = canvasRef.current?.getBoundingClientRect();
-          let jumpDir = 1;
           if (rect) {
              const mx = e.clientX - rect.left;
-             jumpDir = mx < rect.width / 2 ? -1 : 1;
-          }
-
-          // Wall Climb Interaction in Battle
-          const arenaW_battle = gameState === 'FREE_ARENA' ? FREE_ARENA_WIDTH : ARENA_WIDTH;
-          const leftW = getWallX(player.y, 0, 'left');
-          const rightW = getWallX(player.y, arenaW_battle, 'right');
-          const isOnLeft = player.x <= leftW + 30;
-          const isOnRight = player.x >= rightW - 30;
-
-          if (activeSkills['wall_climb'] && ((isOnLeft && jumpDir === -1) || (isOnRight && jumpDir === 1))) {
-              player.vy = jumpForce * 1.3;
-              player.vx = 0;
-              player.va = flipSpeed * 0.5;
-              player.isGrounded = false;
-              player.isStuck = false;
-              sounds.playFlip();
-              return;
-          }
-
-          player.vy = jumpForce * (player.isGrounded ? 1 : 0.8);
-          
-          if (rect) {
+             const jumpDir = mx < rect.width / 2 ? -1 : 1;
              const agilityMultiplier = player.weapon.agility ?? 0.3;
              player.vx = jumpDir * (5 + agilityMultiplier * 5);
           } else {
@@ -2839,6 +3182,8 @@ export default function App() {
       // Update Timer
       gameRef.current.battleTimer -= deltaTime / 1000;
       if (gameRef.current.battleTimer <= 0) {
+        const player = gameRef.current.battlePlayers.find(p => p.id === 'player');
+        if (player) setTotalPoints(pts => pts + Math.floor(player.score));
         setGameState('BATTLERESULTS');
         return;
       }
@@ -2909,14 +3254,14 @@ export default function App() {
             f.vx *= 0.8;
         }
 
-        return f.y < arenaH + 100 && f.x > -100 && f.x < arenaW + 100;
+        return f.y < arenaH + 3000 && f.x > -100 && f.x < arenaW + 100;
       });
 
       // Update Falling Cards
       gameRef.current.objects = objects.filter(obj => {
         if (obj.type === 'CARD') {
           obj.y += 2;
-          return obj.y < arenaH + 100;
+          return obj.y < arenaH + 3000;
         }
         return true;
       });
@@ -3062,6 +3407,109 @@ export default function App() {
           p.y += p.vy;
           p.angle += p.va;
 
+          // SPECIAL ABILITY LOGIC (SABER, HAMMER, HOLY)
+          const isLocal = p.id === 'player';
+          const specialKey = keysRef.current['KeyE'] || keysRef.current['KeyQ'];
+          
+          if (isLocal) {
+            // Toggle Logic (One press)
+            if (specialKey && !gameRef.current.specialKeyWasDown) {
+              (gameRef.current as any).isSpecialActive = !(gameRef.current as any).isSpecialActive;
+              sounds.playFlip(); // Use flip sound for toggle feedback
+            }
+            gameRef.current.specialKeyWasDown = specialKey;
+
+            const isSpecialActive = (gameRef.current as any).isSpecialActive;
+            const weaponType = p.weapon.specialType;
+
+            // Handle Drain / Recharge
+            if (weaponType === 'SABER') {
+               if (isSpecialActive) {
+                 p.energy -= 0.2; // Slow drain
+                 if (p.energy <= 0) (gameRef.current as any).isSpecialActive = false;
+               } else {
+                 p.energy += 0.4; // Faster recharge when retracted
+               }
+               
+               // "Drilling" Ground logic
+               if (isSpecialActive) {
+                 const angleNorm = Math.abs(p.angle % (Math.PI * 2));
+                 const isPointingDown = angleNorm > 1.2 && angleNorm < 2.0; 
+                 if (isPointingDown && p.y > getTerrainY(p.x, arenaH) - 10) {
+                   p.y += 5; // Drill down
+                   p.vy = 2;
+                   if (Math.random() < 0.2) sounds.playSlice();
+                 }
+               }
+            }
+
+            if (weaponType === 'HAMMER' && isSpecialActive) {
+               p.energy -= 1.0; // Fast drain for Mjolnir
+               if (p.energy <= 0) (gameRef.current as any).isSpecialActive = false;
+               
+               // Flight Mode
+               const dx = gameRef.current.mouseX + gameRef.current.cameraX - p.x;
+               const dy = gameRef.current.mouseY - p.y;
+               const dist = Math.sqrt(dx*dx + dy*dy);
+               p.vx += (dx / dist) * 2;
+               p.vy += (dy / dist) * 2;
+               p.va = 0.5; // Auto-spin
+
+               // Lightning Strike (Area Damage)
+               battlePlayers.forEach(other => {
+                 if (other.id !== p.id && Math.hypot(other.x - p.x, other.y - p.y) < 200) {
+                   other.hp -= 5;
+                   if (Math.random() < 0.1) {
+                     particles.push({ x: other.x, y: other.y, vx: 0, vy: 0, life: 0.3, color: '#93c5fd', size: 10 });
+                     sounds.playHit();
+                   }
+                 }
+               });
+            }
+
+            if (weaponType === 'HOLY') {
+               (gameRef.current as any).localIsStuck = p.isStuck;
+               if (p.isStuck) {
+                 p.hp = Math.min(p.maxHp, p.hp + 0.1); // Self heal
+                 // Holy Ground Aura Damage
+                 battlePlayers.forEach(other => {
+                   if (other.id !== p.id && Math.hypot(other.x - p.x, other.y - p.y) < 150) {
+                     other.hp -= 2; // Damage over time
+                     other.vx += (other.x - p.x) * 0.1; // Repel
+                   }
+                 });
+               }
+            }
+          }
+
+          // Weapon specific trails/particles for Fantasy/Tactical gear
+          if (p.weapon.category === 'Fantasia' || p.weapon.category === 'Tático' || (p.weapon.price || 0) > 10000) {
+            const vel = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+            const isHighSpeed = Math.abs(p.va) > 0.05 || vel > 8;
+            if (isHighSpeed && Math.random() < 0.3) {
+              const bLen = 60 * (p.weapon.edgeLength || 1);
+              let pColor = p.weapon.color || '#FFF';
+              let pSize = 4 + Math.random() * 4;
+              let pLife = 0.4 + Math.random() * 0.4;
+
+              // Elemental logic
+              if (p.weapon.id === 'fireknife') pColor = '#ef4444';
+              if (p.weapon.id === 'frost_mourne' || p.weapon.id === 'iceblade') pColor = '#bae6fd';
+              if (p.weapon.id === 'plasma' || p.weapon.id === 'chaos') pColor = '#a855f7';
+              if (p.weapon.id === 'lightsaber') { pSize = 6; pLife = 0.2; }
+
+              particles.push({
+                x: p.x + Math.cos(p.angle) * (bLen * 0.8),
+                y: p.y + Math.sin(p.angle) * (bLen * 0.8),
+                vx: -p.vx * 0.2 + (Math.random() - 0.5) * 2,
+                vy: -p.vy * 0.2 + (Math.random() - 0.5) * 2,
+                life: pLife,
+                color: pColor,
+                size: pSize
+              });
+            }
+          }
+
           // Platform Collision (Islands)
           objects.forEach(obj => {
             if ((obj.type === 'PLATFORM' || obj.type === 'LIFT') && obj.width && obj.height && obj.terrain) {
@@ -3115,17 +3563,12 @@ export default function App() {
           const rightW = getWallX(p.y, arenaW, 'right');
 
           if (!isFreeArena && activeSkills['wall_climb'] && (p.x <= leftW || p.x >= rightW)) {
-            // Only stick if we aren't already jumping AWAY from the wall
-            const isMovingAway = (p.x <= leftW && p.vx > 0.1) || (p.x >= rightW && p.vx < -0.1);
-            
-            if (!isMovingAway) {
-                p.vy = -3.5; // Slightly faster climbing
-                p.vx = 0;
-                p.va = 0;
-                p.angle = p.x <= leftW ? -Math.PI/2 : Math.PI/2;
-                if (p.id === 'player') {
-                    deformWall(p.y, 40, 0.5, p.x <= leftW ? 'left' : 'right');
-                }
+            p.vy = -2;
+            p.vx = 0;
+            p.va = 0;
+            p.angle = p.x <= leftW ? -Math.PI/2 : Math.PI/2;
+            if (p.id === 'player') {
+                deformWall(p.y, 40, 0.5, p.x <= leftW ? 'left' : 'right');
             }
           }
 
@@ -3838,7 +4281,7 @@ export default function App() {
         });
         gameRef.current.slicedHalves = gameRef.current.slicedHalves.filter(h => {
           h.x += h.vx; h.y += h.vy; h.vy += GRAVITY; h.angle += h.va; h.life -= 0.01;
-          return h.life > 0 && h.y < GROUND_Y + 200;
+          return h.life > 0 && h.y < (gameState === 'PLAYING' ? GROUND_Y : (gameState === 'FREE_ARENA' ? FREE_ARENA_HEIGHT : ARENA_HEIGHT)) + 3000;
         });
 
         // Update Impact Marks
@@ -4274,7 +4717,36 @@ export default function App() {
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
 
-      // Check for Sprite support
+      // Global Glow for High-Tier/Fantasy Weapons
+      if (weapon.category === 'Fantasia' || (weapon.price || 0) > 10000) {
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = weapon.color || '#FFF';
+      }
+
+      // Special Ability Rendering (SABER Toggle / HOLY Aura)
+      let effectiveBladeLen = bladeLen;
+      const isSaber = weapon.specialType === 'SABER';
+      const isHoly = weapon.specialType === 'HOLY';
+      const isSpecialActive = (gameRef.current as any).isSpecialActive;
+
+      if (isSaber && !isSpecialActive) {
+          effectiveBladeLen = 0; // Blade is retracted
+          ctx.shadowBlur = 0;
+      }
+      
+      if (isHoly && (gameRef.current as any).localIsStuck) {
+          // Excalibur Aura when stuck
+          ctx.save();
+          ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 200) * 0.1;
+          ctx.shadowBlur = 40;
+          ctx.shadowColor = '#fbbf24';
+          ctx.fillStyle = '#fde68a';
+          ctx.beginPath();
+          ctx.arc(0, 0, 150, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+      }
+
       if (weapon.spriteUrl) {
         const imgKey = `weapon_${weapon.id}`;
         if (!gameRef.current.images) gameRef.current.images = {};
@@ -4365,9 +4837,184 @@ export default function App() {
       switch(currentWeapon.id) {
         case 'katana': drawHandle(handleLen, 10); drawBlade(bladeLen, 6); break;
         case 'cleaver': drawHandle(handleLen * 1.5, 8); ctx.fillStyle = '#FFF'; ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(30, -30); ctx.lineTo(35, 30); ctx.lineTo(0, 20); ctx.closePath(); ctx.fill(); ctx.stroke(); break;
-        case 'mjolnir': drawHandle(handleLen * 1.2, 12); ctx.fillStyle = '#94a3b8'; ctx.fillRect(0, -25, 40, 50); ctx.strokeRect(0, -25, 40, 50); break;
-        case 'lightsaber': drawHandle(handleLen, 12); drawBlade(bladeLen, 10, weapon.color, true); break;
+        case 'mjolnir': 
+            drawHandle(handleLen * 1.2, 12); 
+            ctx.fillStyle = '#94a3b8'; ctx.fillRect(0, -25, 40, 50); ctx.strokeRect(0, -25, 40, 50);
+            if (isSpecialActive && weapon.specialType === 'HAMMER') {
+              ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 2;
+              for(let i=0; i<5; i++) {
+                ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(20+Math.random()*40-20, Math.random()*80-40); ctx.stroke();
+              }
+            }
+            break;
+        case 'saber_blue':
+        case 'saber_yellow':
+        case 'saber_green':
+        case 'lightsaber': 
+            drawHandle(handleLen, 8); 
+            if (effectiveBladeLen > 0) {
+              drawBlade(effectiveBladeLen, 10, weapon.color);
+              drawBlade(effectiveBladeLen, 4, '#FFF'); // Core
+            }
+            break;
         case 'chainsaw': drawHandle(handleLen, 15); ctx.fillStyle = '#ef4444'; ctx.fillRect(0, -15, 80, 30); ctx.strokeRect(0, -15, 80, 30); break;
+        case 'fork':
+            drawHandle(handleLen, 10);
+            ctx.strokeStyle = '#2B2D42'; ctx.lineWidth = 3;
+            for (let i = -1.5; i <= 1.5; i++) {
+                ctx.beginPath(); ctx.moveTo(0, i * 4); ctx.lineTo(bladeLen, i * 4); ctx.stroke();
+            }
+            break;
+        case 'scissors':
+            ctx.save(); ctx.rotate(Math.PI / 8); drawHandle(handleLen, 6); drawBlade(bladeLen, 6); ctx.restore();
+            ctx.save(); ctx.rotate(-Math.PI / 8); drawHandle(handleLen, 6); drawBlade(bladeLen, 6); ctx.restore();
+            break;
+        case 'pizza':
+            drawHandle(handleLen, 8);
+            ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.arc(bladeLen/2, 0, 25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            break;
+        case 'lumberjack':
+            drawHandle(handleLen * 2, 8);
+            ctx.fillStyle = '#475569'; ctx.beginPath(); ctx.moveTo(0, -30); ctx.quadraticCurveTo(40, 0, 0, 30); ctx.lineTo(-10, 20); ctx.lineTo(-10, -20); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'pickaxe':
+            drawHandle(handleLen * 2, 8);
+            ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(0, -40); ctx.quadraticCurveTo(20, 0, 0, 40); ctx.lineTo(5, 40); ctx.quadraticCurveTo(25, 0, 5, -40); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'shovel':
+            drawHandle(handleLen * 2.5, 6);
+            ctx.fillStyle = '#475569'; ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(40, -20); ctx.lineTo(45, 0); ctx.lineTo(40, 20); ctx.lineTo(0, 25); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'crowbar':
+            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(-handleLen, 0); ctx.lineTo(bladeLen, 0); ctx.quadraticCurveTo(bladeLen + 15, 0, bladeLen + 15, -20); ctx.stroke();
+            break;
+        case 'scythe':
+            drawHandle(handleLen * 3, 8);
+            ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(60, -80, 100, -20); ctx.lineTo(90, -25); ctx.quadraticCurveTo(55, -70, 0, -5); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'boomerang':
+            ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(50, -50); ctx.lineTo(60, -40); ctx.lineTo(0, 20); ctx.lineTo(-60, -40); ctx.lineTo(-50, -50); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'claws':
+            drawHandle(handleLen/2, 20);
+            ctx.strokeStyle = '#64748b'; ctx.lineWidth = 4;
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath(); ctx.moveTo(0, i * 8); ctx.quadraticCurveTo(40, i * 8, 50, i * 8 + 10); ctx.stroke();
+            }
+            break;
+        case 'shuriken':
+            ctx.save();
+            ctx.fillStyle = '#1e293b'; ctx.beginPath();
+            for (let i = 0; i < 4; i++) {
+                ctx.rotate(Math.PI / 2);
+                ctx.moveTo(0, 0); ctx.lineTo(30, 0); ctx.lineTo(15, 15); ctx.closePath();
+            }
+            ctx.fill(); ctx.stroke();
+            ctx.restore();
+            break;
+        case 'handsaw':
+            drawHandle(handleLen, 15);
+            ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(bladeLen, -5); ctx.lineTo(bladeLen, 5); ctx.lineTo(0, 15);
+            for (let x = bladeLen; x > 0; x -= 10) { ctx.lineTo(x, 15); ctx.lineTo(x - 5, 20); }
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'peeler':
+            drawHandle(handleLen, 8);
+            ctx.strokeStyle = '#64748b'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(25, -12); ctx.lineTo(25, 12); ctx.lineTo(0, 12); ctx.stroke();
+            ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(8, -10); ctx.lineTo(18, -10); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(8, 10); ctx.lineTo(18, 10); ctx.stroke();
+            break;
+        case 'golf':
+            drawHandle(handleLen * 4, 5);
+            ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.ellipse(5, 0, 18, 12, Math.PI/4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            break;
+        case 'baseball':
+            ctx.fillStyle = '#d97706'; ctx.beginPath(); ctx.moveTo(-handleLen, -4); ctx.lineTo(0, -6); ctx.lineTo(bladeLen, -14);
+            ctx.quadraticCurveTo(bladeLen + 12, 0, bladeLen, 14); ctx.lineTo(0, 6); ctx.lineTo(-handleLen, 4);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'longsword':
+            drawHandle(handleLen, 10);
+            ctx.fillStyle = '#94a3b8'; ctx.fillRect(0, -25, 6, 50); ctx.strokeRect(0, -25, 6, 50);
+            drawBlade(bladeLen, 12);
+            break;
+        case 'giant':
+            drawHandle(handleLen * 1.5, 15);
+            ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(bladeLen, -20); ctx.lineTo(bladeLen, 20); ctx.lineTo(0, 25); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'rapier':
+            drawHandle(handleLen, 8);
+            ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(-5, 0, 20, -Math.PI/2, Math.PI/2); ctx.stroke();
+            drawBlade(bladeLen, 4);
+            break;
+        case 'dagger':
+            drawHandle(handleLen * 0.7, 8); drawBlade(bladeLen * 0.5, 8);
+            break;
+        case 'halberd':
+            drawHandle(handleLen * 5, 8);
+            ctx.fillStyle = '#475569';
+            ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(40, 0); ctx.lineTo(0, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, -30); ctx.quadraticCurveTo(15, -15, 0, 0); ctx.lineTo(-15, -15); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'scimitar':
+            drawHandle(handleLen, 10);
+            ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(bladeLen/2, -30, bladeLen, 0);
+            ctx.lineTo(bladeLen - 10, 15); ctx.quadraticCurveTo(bladeLen/2, -15, 0, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'karambit':
+            drawHandle(handleLen * 0.8, 12);
+            ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(30, -30, 45, 0); ctx.lineTo(40, 5);
+            ctx.quadraticCurveTo(25, -20, 0, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'balisong':
+            ctx.save(); ctx.rotate(Math.PI/10); drawHandle(handleLen, 6); ctx.restore();
+            ctx.save(); ctx.rotate(-Math.PI/10); drawHandle(handleLen, 6); ctx.restore();
+            drawBlade(bladeLen * 0.7, 5);
+            break;
+        case 'machete':
+            drawHandle(handleLen, 10);
+            ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(bladeLen, -15); ctx.lineTo(bladeLen + 8, 25); ctx.lineTo(0, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'tomahawk':
+            drawHandle(handleLen * 2, 8);
+            ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(25, -20); ctx.lineTo(25, 0); ctx.lineTo(0, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'excalibur':
+            drawHandle(handleLen, 12);
+            ctx.fillStyle = '#fbbf24'; ctx.fillRect(0, -25, 8, 50); ctx.strokeRect(0, -25, 8, 50);
+            drawBlade(bladeLen, 15, '#fbbf24');
+            break;
+        case 'gungnir':
+            drawHandle(handleLen * 4, 6);
+            ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(45, 0); ctx.lineTo(0, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+            break;
+        case 'muramasa':
+            drawHandle(handleLen, 8); drawBlade(bladeLen, 5, '#1e293b');
+            ctx.shadowBlur = 10; ctx.shadowColor = '#ef4444'; ctx.strokeStyle = '#ef4444'; ctx.stroke();
+            break;
+        case 'cricket':
+            drawHandle(handleLen * 1.5, 10);
+            ctx.fillStyle = '#78350f'; ctx.beginPath(); ctx.roundRect(0, -20, bladeLen, 40, 5); ctx.fill(); ctx.stroke();
+            break;
+        case 'ruler':
+            ctx.fillStyle = '#94a3b8'; ctx.fillRect(-handleLen, -10, handleLen + bladeLen, 20); ctx.strokeRect(-handleLen, -10, handleLen + bladeLen, 20);
+            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+            for (let x = -handleLen; x < bladeLen; x += 15) { ctx.beginPath(); ctx.moveTo(x, -10); ctx.lineTo(x, -3); ctx.stroke(); }
+            break;
+        case 'pencil':
+            ctx.fillStyle = '#eab308'; ctx.fillRect(-handleLen, -5, handleLen + bladeLen - 15, 10);
+            ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.moveTo(bladeLen - 15, -5); ctx.lineTo(bladeLen, 0); ctx.lineTo(bladeLen - 15, 5); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(bladeLen - 5, -2); ctx.lineTo(bladeLen, 0); ctx.lineTo(bladeLen - 5, 2); ctx.closePath(); ctx.fill();
+            break;
+        case 'compass':
+            ctx.save(); ctx.rotate(Math.PI/12); drawHandle(handleLen * 2, 4); ctx.restore();
+            ctx.save(); ctx.rotate(-Math.PI/12); drawHandle(handleLen * 2, 4); ctx.restore();
+            break;
+        case 'letteropener':
+            drawHandle(handleLen * 0.6, 6); drawBlade(bladeLen * 0.6, 6);
+            break;
         default: drawHandle(handleLen, 10); drawBlade(bladeLen, 10); break;
       }
     };
@@ -5321,11 +5968,7 @@ export default function App() {
                       transition={{ type: 'spring', damping: 12 }}
                       className="w-40 h-40 flex items-center justify-center drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] my-4 relative z-10"
                     >
-                      {selectedWeapon.spriteUrl ? (
-                        <img src={selectedWeapon.spriteUrl} alt={selectedWeapon.name} className="w-full h-full object-contain -rotate-12" referrerPolicy="no-referrer" />
-                      ) : (
-                        <span className="text-8xl sm:text-9xl">{selectedWeapon.icon}</span>
-                      )}
+                      <WeaponCanvas weapon={selectedWeapon} size={150} />
                     </motion.div>
 
                     <div className="w-full text-center relative z-10">
@@ -5408,10 +6051,13 @@ export default function App() {
                         <p className="text-[10px] font-black text-vibrant-dark/30 uppercase tracking-widest">Personalize seu equipamento</p>
                       </div>
                       
-                      <div className="flex gap-2">
-                        <div className="bg-vibrant-yellow px-4 py-2 rounded-2xl border-4 border-vibrant-dark text-[10px] sm:text-xs font-black uppercase tracking-widest text-vibrant-dark shadow-[4px_4px_0_rgba(0,0,0,0.1)] flex items-center gap-2">
-                          <div className="w-2 h-2 bg-vibrant-green rounded-full animate-pulse" />
-                          SELECT WEAPON
+                      <div className="flex gap-4">
+                        <div className="flex flex-col items-end">
+                          <div className="text-[10px] font-black text-vibrant-dark/40 uppercase tracking-[0.2em] mb-1">Seus Pontos</div>
+                          <div className="bg-vibrant-dark text-white px-4 py-2 rounded-2xl font-black text-xl flex items-center gap-2 shadow-lg border-2 border-white/20">
+                            <Coins className="w-5 h-5 text-vibrant-yellow animate-pulse" />
+                            {totalPoints.toLocaleString()}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -5444,29 +6090,51 @@ export default function App() {
                         {WEAPON_PRESETS
                           .filter(w => w.category === activeCategory)
                           .filter(w => !menuVisibility.hiddenWeapons?.includes(w.id))
-                          .map((weapon) => (
-                          <button
-                            key={weapon.id}
-                            onClick={() => setSelectedWeapon(weapon)}
-                            className={`min-w-[240px] lg:min-w-0 flex-shrink-0 p-4 rounded-2xl border-4 transition-all flex items-center gap-5 snap-start relative group ${
-                              selectedWeapon.id === weapon.id 
-                                ? 'border-vibrant-red bg-red-50/80 shadow-[6px_6px_0_#FEE2E2]' 
-                                : 'border-slate-200 bg-white hover:border-slate-300'
-                            }`}
-                          >
-                            <div className="w-16 h-16 lg:w-20 lg:h-20 shrink-0 flex items-center justify-center group-hover:scale-110 transition-transform drop-shadow-md">
-                              {weapon.spriteUrl ? (
-                                <img src={weapon.spriteUrl} alt={weapon.name} className="w-full h-full object-contain -rotate-12" referrerPolicy="no-referrer" />
-                              ) : (
-                                <span className="text-4xl lg:text-5xl">{weapon.icon}</span>
-                              )}
-                            </div>
-                            <div className="text-left min-w-0">
-                              <div className="text-sm lg:text-lg font-black text-vibrant-dark uppercase tracking-tight leading-tight">{weapon.name}</div>
-                              <div className="text-vibrant-dark/50 font-bold text-[10px] lg:text-[11px] tracking-tight">{weapon.mass}kg • {Math.round(weapon.sharpnessFactor * 100)}% AFIADO</div>
-                            </div>
-                          </button>
-                        ))}
+                          .map((weapon) => {
+                            const isUnlocked = unlockedWeapons.includes(weapon.id) || (weapon.price || 0) === 0;
+                            return (
+                              <button
+                                key={weapon.id}
+                                onClick={() => {
+                                  if (isUnlocked) {
+                                    setSelectedWeapon(weapon);
+                                  } else {
+                                    if (totalPoints >= (weapon.price || 0)) {
+                                      setTotalPoints(p => p - (weapon.price || 0));
+                                      setUnlockedWeapons(u => [...u, weapon.id]);
+                                      setSelectedWeapon(weapon);
+                                      sounds.playCollect();
+                                    }
+                                  }
+                                }}
+                                className={`min-w-[240px] lg:min-w-0 flex-shrink-0 p-4 rounded-2xl border-4 transition-all flex items-center gap-5 snap-start relative group ${
+                                  selectedWeapon.id === weapon.id 
+                                    ? 'border-vibrant-red bg-red-50/80 shadow-[6px_6px_0_#FEE2E2]' 
+                                    : 'border-slate-200 bg-white hover:border-slate-300'
+                                } ${!isUnlocked ? 'opacity-70' : ''}`}
+                              >
+                                <div className="w-16 h-16 lg:w-20 lg:h-20 shrink-0 flex items-center justify-center group-hover:scale-110 transition-transform drop-shadow-md overflow-hidden rounded-xl">
+                                  <WeaponCanvas weapon={weapon} size={80} />
+                                </div>
+                                <div className="text-left min-w-0">
+                                  <div className="text-sm lg:text-lg font-black text-vibrant-dark uppercase tracking-tight leading-tight">{weapon.name}</div>
+                                  <div className="text-vibrant-dark/50 font-bold text-[10px] lg:text-[11px] tracking-tight">{weapon.mass}kg • {Math.round(weapon.sharpnessFactor * 100)}% AFIADO</div>
+                                </div>
+
+                                {!isUnlocked && (
+                                  <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                                    <div className="bg-vibrant-dark/90 backdrop-blur-sm text-white px-2 py-1 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 border border-white/20">
+                                      <Lock className="w-3 h-3" />
+                                      LOCKED
+                                    </div>
+                                    <div className="bg-vibrant-yellow text-vibrant-dark px-2 py-1 rounded-lg text-[10px] font-black flex items-center gap-1 border-2 border-vibrant-dark shadow-sm">
+                                      💰 {(weapon.price || 0).toLocaleString()}
+                                    </div>
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
                       </div>
                     </div>
 
@@ -5475,9 +6143,7 @@ export default function App() {
                       <div className="bg-[#FAF9F6] p-4 sm:p-6 rounded-[3rem] border-4 border-slate-100 flex flex-col gap-6 items-center shadow-inner h-full overflow-hidden">
                         <div className="w-full space-y-4">
                           <div className="text-center mb-2">
-                             <div className="text-sm font-black text-vibrant-dark/40 uppercase tracking-widest opacity-60">Atributos Detalhados</div>
-                             <div className="text-3xl sm:text-4xl font-black text-vibrant-dark uppercase tracking-tighter leading-none mb-1">{selectedWeapon.name}</div>
-                             <div className="text-vibrant-red font-black text-lg uppercase tracking-tight">Equipamento Profissional</div>
+                             <div className="text-xl sm:text-2xl font-black text-vibrant-dark uppercase tracking-tighter leading-none mb-1">{selectedWeapon.name}</div>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 overflow-y-auto pr-2 custom-scrollbar max-h-[450px]">
@@ -5607,36 +6273,57 @@ export default function App() {
       )}
 
       {/* Minimap */}
-      {(gameState === 'BATTLE' || gameState === 'FREE_ARENA') && menuVisibility.minimap && (
-        <div className="absolute bottom-8 right-8 w-40 h-40 bg-vibrant-dark/60 border-4 border-white rounded-3xl overflow-hidden pointer-events-none shadow-2xl">
-          <div className="absolute inset-0 opacity-20">
-            <div className="w-full h-full" style={{ 
-              backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', 
-              backgroundSize: '20px 20px' 
-            }} />
-          </div>
-          {gameRef.current.battlePlayers.map(p => {
-            const isFreeArena = gameState === 'FREE_ARENA';
-            const arenaW = isFreeArena ? FREE_ARENA_WIDTH : ARENA_WIDTH;
-            const arenaH = isFreeArena ? FREE_ARENA_HEIGHT : ARENA_HEIGHT;
-            
-            const baseBottomLimit = arenaH - window.innerHeight;
-            const minimapCameraY = gameRef.current && gameRef.current.arenaCameraY > baseBottomLimit ? gameRef.current.arenaCameraY - baseBottomLimit : 0;
-            
-            return (
-              <motion.div 
-                key={p.id}
-                className={`absolute w-2 h-2 rounded-full ${p.id === 'player' ? 'bg-vibrant-green shadow-[0_0_10px_#4ade80]' : 'bg-vibrant-red shadow-[0_0_10px_#ef4444]'}`}
-                style={{
-                  left: `${(p.x / arenaW) * 100}%`,
-                  top: `${((p.y - minimapCameraY) / arenaH) * 100}%`,
-                  transform: 'translate(-50%, -50%)'
-                }}
-              />
-            );
-          })}
-        </div>
-      )}
+      {(gameState === 'BATTLE' || gameState === 'FREE_ARENA') && menuVisibility.minimap && (() => {
+          const isFreeArena = gameState === 'FREE_ARENA';
+          const arenaW = isFreeArena ? FREE_ARENA_WIDTH : ARENA_WIDTH;
+          const arenaH = isFreeArena ? FREE_ARENA_HEIGHT : ARENA_HEIGHT;
+          
+          const baseBottomLimit = arenaH - window.innerHeight;
+          const minimapCameraY = gameRef.current && gameRef.current.arenaCameraY > baseBottomLimit ? gameRef.current.arenaCameraY - baseBottomLimit : 0;
+          
+          return (
+            <div className="absolute bottom-8 right-8 w-40 h-40 bg-vibrant-dark/60 border-4 border-white rounded-3xl overflow-hidden pointer-events-none shadow-2xl">
+              <div className="absolute inset-0 opacity-20">
+                <div className="w-full h-full" style={{ 
+                  backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', 
+                  backgroundSize: '20px 20px' 
+                }} />
+              </div>
+
+              {/* Render Islands on Minimap */}
+              {gameRef.current.objects.map(obj => {
+                if (obj.type === 'PLATFORM' || obj.type === 'LIFT') {
+                  return (
+                    <div 
+                      key={obj.id}
+                      className="absolute bg-vibrant-blue opacity-40 border border-white/20"
+                      style={{
+                        left: `${(obj.x / arenaW) * 100}%`,
+                        top: `${((obj.y - minimapCameraY) / arenaH) * 100}%`,
+                        width: `${((obj.width || 200) / arenaW) * 100}%`,
+                        height: `${((obj.height || 60) / arenaH) * 100}%`,
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    />
+                  );
+                }
+                return null;
+              })}
+
+              {gameRef.current.battlePlayers.map(p => (
+                <motion.div 
+                  key={p.id}
+                  className={`absolute w-2 h-2 rounded-full ${p.id === 'player' ? 'bg-vibrant-green shadow-[0_0_10px_#4ade80]' : 'bg-vibrant-red shadow-[0_0_10px_#ef4444]'}`}
+                  style={{
+                    left: `${(p.x / arenaW) * 100}%`,
+                    top: `${((p.y - minimapCameraY) / arenaH) * 100}%`,
+                    transform: 'translate(-50%, -50%)'
+                  }}
+                />
+              ))}
+            </div>
+          );
+      })()}
 
       {/* Battle Results Screen */}
       <AnimatePresence>
